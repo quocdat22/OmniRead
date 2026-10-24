@@ -53,6 +53,17 @@ class ParsedDocument:
 
 
 @dataclass
+class _SpanInfo:
+    text: str
+    size: float
+    font: str
+    flags: int
+    color: int  # 24-bit sRGB
+    weight: int = 400
+    italic: bool = False
+
+
+@dataclass
 class _Line:
     x0: float
     y0: float
@@ -61,6 +72,7 @@ class _Line:
     size: float
     text: str
     block_no: int
+    spans: list[_SpanInfo]
 
 
 @dataclass
@@ -85,6 +97,43 @@ _PAGE_NO = re.compile(r"^(?:page\s+)?(?:\d{1,4}|[ivxlcdm]{1,7})(?:\s*(?:of|/)\s*
 
 
 # ---------------------------------------------------------------- bước 1: lấy dòng
+def _font_weight(flags: int, font: str) -> int:
+    f = font.lower()
+    if "black" in f or "heavy" in f:
+        return 900
+    if "extrabold" in f or "ultrabold" in f:
+        return 800
+    if bool(flags & 16) or "bold" in f:
+        return 700
+    if "semibold" in f or "demibold" in f or "demi" in f:
+        return 600
+    if "medium" in f:
+        return 500
+    if "light" in f:
+        return 300
+    if "thin" in f or "hairline" in f:
+        return 200
+    return 400
+
+
+def _is_italic(flags: int, font: str) -> bool:
+    f = font.lower()
+    return bool(flags & 2) or ("italic" in f) or ("oblique" in f)
+
+
+def _is_neutral_dark(c: int) -> bool:
+    r = (c >> 16) & 0xFF
+    g = (c >> 8) & 0xFF
+    b = c & 0xFF
+    if max(r, g, b) - min(r, g, b) > 25:
+        return False
+    return max(r, g, b) < 65
+
+
+def _hex_color(c: int) -> str:
+    return f"#{c:06x}"
+
+
 def _extract_blocks(page: pymupdf.Page) -> list[_RawBlock]:
     data = page.get_text("dict", sort=settings.sort_blocks)
     out: list[_RawBlock] = []
@@ -103,8 +152,22 @@ def _extract_blocks(page: pymupdf.Page) -> list[_RawBlock]:
             text = re.sub(r"\s+", " ", text).strip()
             if not text:
                 continue
+            span_infos = [
+                _SpanInfo(
+                    text=s["text"].translate(_CLEAN),
+                    size=float(s.get("size", 0.0)),
+                    font=str(s.get("font", "")),
+                    flags=int(s.get("flags", 0)),
+                    color=int(s.get("color", 0)),
+                    weight=_font_weight(int(s.get("flags", 0)), str(s.get("font", ""))),
+                    italic=_is_italic(int(s.get("flags", 0)), str(s.get("font", ""))),
+                )
+                for s in ln["spans"]
+                if s["text"].translate(_CLEAN)
+            ]
             x0, y0, x1, y1 = ln["bbox"]
-            lines.append(_Line(x0, y0, x1, y1, max(s["size"] for s in spans), text, bno))
+            rep_span = max(spans, key=lambda s: len(s["text"].strip()))
+            lines.append(_Line(x0, y0, x1, y1, float(rep_span["size"]), text, bno, span_infos))
         if lines:
             bbox = (
                 min(l.x0 for l in lines), min(l.y0 for l in lines),
@@ -172,7 +235,152 @@ def _group_paragraphs(lines: list[_Line]) -> list[list[_Line]]:
     return groups
 
 
-# ---------------------------------------------------------------- bước 4: nối dòng
+# ---------------------------------------------------------------- bước 4: nối dòng & định dạng
+@dataclass
+class _FormattedToken:
+    text: str
+    bold: bool
+    italic: bool
+    color: str | None
+
+
+def _format_paragraph(lines: list[_Line]) -> str:
+    all_spans: list[_SpanInfo] = []
+    for ln in lines:
+        line_spans = [
+            _SpanInfo(
+                s.text,
+                s.size,
+                s.font,
+                s.flags,
+                s.color,
+                s.weight,
+                s.italic,
+            )
+            for s in ln.spans
+            if s.text
+        ]
+        if not line_spans:
+            continue
+        if all_spans:
+            last = all_spans[-1]
+            first = line_spans[0]
+            last_t = last.text
+            first_t = first.text
+            # Nối từ có dấu gạch nối cuối dòng: "engineer-" + "ing" -> "engineering"
+            if (
+                (last_t.endswith("-") or last_t.endswith("‐"))
+                and len(last_t) > 1
+                and last_t[-2].isalpha()
+                and first_t[:1].islower()
+            ):
+                last.text = last_t[:-1]
+            elif not last_t.endswith(" ") and not first_t.startswith(" "):
+                all_spans.append(_SpanInfo(" ", last.size, "", 0, 0, 400, False))
+        all_spans.extend(line_spans)
+
+    if not all_spans:
+        return ""
+
+    # Tính baseline cho cả đoạn văn
+    total_chars = 0
+    weights: Counter[int] = Counter()
+    italic_chars = 0
+
+    for s in all_spans:
+        core_len = len(s.text.strip())
+        if core_len == 0:
+            continue
+        total_chars += core_len
+        weights[s.weight] += core_len
+        if s.italic:
+            italic_chars += core_len
+
+    if total_chars == 0:
+        return ""
+
+    baseline_weight = weights.most_common(1)[0][0] if weights else 400
+    baseline_italic = (italic_chars / total_chars > 0.6)
+
+    # Gán active tags cho từng span
+    tokens: list[_FormattedToken] = []
+    for s in all_spans:
+        # 1. Đoạn toàn bộ là tiêu đề đậm (baseline >= 600)
+        # 2. Hoặc span là Bold/SemiBold (>= 600) và đậm hơn baseline
+        # 3. Hoặc span là Medium (500) và đậm hơn baseline (Regular 400 / Light 300)
+        if baseline_weight >= 600:
+            active_bold = True
+        else:
+            active_bold = (s.weight >= 600) or (s.weight >= 500 and s.weight > baseline_weight)
+
+        active_italic = s.italic if not baseline_italic else True
+
+        # Bất kỳ màu nào không phải màu đen/xám tối trung tính thì giữ nguyên màu sắc
+        active_color = _hex_color(s.color) if not _is_neutral_dark(s.color) else None
+
+        tokens.append(_FormattedToken(s.text, active_bold, active_italic, active_color))
+
+    # Hợp nhất khoảng trắng nằm giữa 2 token có cùng định dạng
+    for i in range(1, len(tokens) - 1):
+        prev_t = tokens[i - 1]
+        cur_t = tokens[i]
+        next_t = tokens[i + 1]
+        if (
+            cur_t.text.strip() == ""
+            and prev_t.bold == next_t.bold
+            and prev_t.italic == next_t.italic
+            and prev_t.color == next_t.color
+        ):
+            cur_t.bold = prev_t.bold
+            cur_t.italic = prev_t.italic
+            cur_t.color = prev_t.color
+
+    # Gộp các token liên tiếp có cùng định dạng
+    merged: list[_FormattedToken] = []
+    for tok in tokens:
+        if not tok.text:
+            continue
+        if (
+            merged
+            and merged[-1].bold == tok.bold
+            and merged[-1].italic == tok.italic
+            and merged[-1].color == tok.color
+        ):
+            merged[-1].text += tok.text
+        else:
+            merged.append(_FormattedToken(tok.text, tok.bold, tok.italic, tok.color))
+
+    # Đóng gói thẻ HTML nội dòng, đảm bảo khoảng trắng nằm ngoài thẻ
+    parts: list[str] = []
+    for tok in merged:
+        t = tok.text
+        if not (tok.bold or tok.italic or tok.color):
+            parts.append(t)
+            continue
+
+        m = re.match(r"^(\s*)(.*?)(\s*)$", t, re.DOTALL)
+        if not m:
+            parts.append(t)
+            continue
+        l_ws, core, r_ws = m.groups()
+        if not core:
+            parts.append(t)
+            continue
+
+        tagged = core
+        if tok.italic:
+            tagged = f"<i>{tagged}</i>"
+        if tok.bold:
+            tagged = f"<b>{tagged}</b>"
+        if tok.color:
+            tagged = f'<font color="{tok.color}">{tagged}</font>'
+
+        parts.append(l_ws + tagged + r_ws)
+
+    res = "".join(parts)
+    return re.sub(r" +", " ", res).strip()
+
+
 def _join_lines(lines: list[_Line]) -> str:
     text = ""
     for ln in lines:
@@ -226,7 +434,9 @@ def parse_pdf(path: Path) -> ParsedDocument:
             lines = [l for b in kept for l in b.lines]
             idx = 0
             for group in _group_paragraphs(lines):
-                text = _join_lines(group)
+                text = _format_paragraph(group)
+                if not text:
+                    text = _join_lines(group)
                 if sum(c.isalpha() for c in text) < 2:  # số/ký hiệu lẻ
                     continue
                 bbox = (

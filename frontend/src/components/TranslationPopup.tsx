@@ -3,6 +3,7 @@ import {
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
 import type { Block } from "../types";
+import FormattedText from "./FormattedText";
 
 interface Props {
   block: Block;
@@ -42,7 +43,7 @@ export default function TranslationPopup({
       <div ref={refs.setFloating} style={floatingStyles} className="popup" {...getFloatingProps()}>
         <div className="popup-body">
           {ready ? (
-            <p>{block.translation}</p>
+            <p><FormattedText text={block.translation!} /></p>
           ) : block.status === "error" ? (
             <p className="err">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
           ) : (

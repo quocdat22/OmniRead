@@ -22,6 +22,11 @@ Quy tắc:
 - Giữ nguyên tên riêng, thương hiệu, mã code, URL, số liệu.
 - Giữ nguyên ký hiệu đầu dòng/đánh số nếu có.
 - Nếu đoạn văn chỉ gồm số, ký hiệu hoặc không cần dịch, trả lại nguyên văn.
+- BẢO TOÀN ĐỊNH DẠNG: Đoạn văn có thể chứa các thẻ HTML nội dòng đánh dấu một số từ đặc biệt như <b>in đậm</b>, <i>in nghiêng</i>, <font color="#RRGGBB">màu chữ</font>.
+  + Hãy giữ nguyên các thẻ này và bao quanh đúng các từ hoặc cụm từ tương ứng trong bản dịch tiếng Việt theo ngữ pháp tiếng Việt.
+  + Không dịch hoặc thay đổi nội dung thuộc tính của thẻ (ví dụ mã màu hex #RRGGBB phải giữ nguyên vẹn).
+  + Tuyệt đối không tự ý thêm thẻ vào các từ vốn là văn bản bình thường trong câu gốc.
+  + Tuyệt đối không xóa bỏ thẻ nếu từ gốc có thẻ.
 - CHỈ trả về bản dịch: không giải thích, không ghi chú, không bao quanh bằng dấu ngoặc kép."""
 
 

@@ -111,3 +111,10 @@ body {
 .popup-body { padding: 12px 14px; overflow: auto; line-height: 1.65; }
 .popup-body p { margin: 0 0 8px; white-space: pre-wrap; }
 .popup-body p:last-child { margin-bottom: 0; }
+.popup-body em { font-style: italic; }
+.popup-body strong { font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .popup-body [data-color] {
+    filter: brightness(1.35) saturate(1.2);
+  }
+}
