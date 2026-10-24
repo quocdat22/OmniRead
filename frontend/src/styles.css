@@ -6,7 +6,6 @@
   --border: #e5e7eb;
   --accent: #2563eb;
   --danger: #dc2626;
-  --hl: 250, 204, 21; /* màu highlight block (RGB) */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -93,12 +92,29 @@ body {
 /* vùng bấm của block */
 .block { position: absolute; cursor: pointer; }
 .block::before {
-  content: ""; position: absolute; inset: -3px; border-radius: 4px;
-  mix-blend-mode: multiply; transition: background 0.1s; pointer-events: none;
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 3px;
+  border-radius: 2px;
+  background-color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  pointer-events: none;
 }
-.block:hover::before { background: rgba(var(--hl), 0.3); }
-.block.selected::before { background: rgba(var(--hl), 0.5); outline: 2px solid rgb(var(--hl)); }
-.block.error::before { outline: 1px dashed var(--danger); }
+.block:hover::before {
+  opacity: 0.45;
+}
+.block.selected::before,
+.block.selected:hover::before {
+  opacity: 1;
+}
+.block.error::before {
+  opacity: 1;
+  background-color: var(--danger);
+}
 
 /* ---------------- Popup ---------------- */
 .popup {
