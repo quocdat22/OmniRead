@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+backend/.venv
+backend/venv
+backend/env
+.venv
+
+# Node
+frontend/node_modules
+node_modules
+frontend/dist
+
+# Application data
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/data/pdfs/*
+!backend/data/pdfs/.gitkeep
+backend/data/tmp/*
+!backend/data/tmp/.gitkeep
+
+# Env files (keep sensitive keys out of image build)
+backend/.env
+.env
+.env.local

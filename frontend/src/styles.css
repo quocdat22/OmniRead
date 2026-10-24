@@ -1,0 +1,122 @@
+:root {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --fg: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  --hl: 250, 204, 21; /* màu highlight block (RGB) */
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111318;
+    --surface: #1d2027;
+    --fg: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #2f3441;
+    --accent: #60a5fa;
+    --danger: #f87171;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.grow { flex: 1; }
+.muted { color: var(--muted); }
+.err { color: var(--danger); }
+.notice { margin: 16px 0; padding: 10px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+.notice.warn { border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08); color: inherit; }
+.notice.warn code { background: rgba(0, 0, 0, 0.06); padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--fg);
+  font: inherit; text-decoration: none;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--danger); }
+.bar { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; vertical-align: middle; }
+.bar i { display: block; height: 100%; background: var(--accent); transition: width 0.4s; }
+
+/* ---------------- Library ---------------- */
+.library { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+.library-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.library-header h1 { margin: 0; }
+.status-indicators { display: flex; align-items: center; gap: 8px; }
+.status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+.status-badge.live { background: rgba(34, 197, 94, 0.15); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.3); }
+.status-badge.success { background: rgba(59, 130, 246, 0.15); color: var(--accent); border: 1px solid rgba(59, 130, 246, 0.3); }
+.status-badge.warn { background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+.dropzone {
+  display: block; padding: 28px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--border); border-radius: 12px; color: var(--muted);
+}
+.dropzone:hover, .dropzone.over { border-color: var(--accent); color: var(--fg); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 20px; }
+.card { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.card .bar { width: 100%; }
+.card-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+
+/* ---------------- Reader ---------------- */
+.reader-bar {
+  position: sticky; top: 0; z-index: 50; height: 52px;
+  display: flex; align-items: center; gap: 12px; padding: 0 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.reader-title { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.page-jump { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.page-jump input { width: 64px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); font: inherit; }
+.zoom { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+
+.pages { display: flex; flex-direction: column; gap: 16px; padding: 16px; width: max-content; min-width: 100%; }
+.pdf-page {
+  position: relative; margin-inline: auto; background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); scroll-margin-top: 60px;
+}
+.pdf-page canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.page-no { position: absolute; inset: 0; display: grid; place-items: center; font-size: 48px; color: #e5e7eb; user-select: none; }
+.overlay { position: absolute; inset: 0; }
+
+/* vùng bấm của block */
+.block { position: absolute; cursor: pointer; }
+.block::before {
+  content: ""; position: absolute; inset: -3px; border-radius: 4px;
+  mix-blend-mode: multiply; transition: background 0.1s; pointer-events: none;
+}
+.block:hover::before { background: rgba(var(--hl), 0.3); }
+.block.selected::before { background: rgba(var(--hl), 0.5); outline: 2px solid rgb(var(--hl)); }
+.block.error::before { outline: 1px dashed var(--danger); }
+
+/* ---------------- Popup ---------------- */
+.popup {
+  z-index: 1000; width: min(520px, calc(100vw - 24px));
+  display: flex; flex-direction: column;
+  background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+.popup-body { padding: 12px 14px; overflow: auto; line-height: 1.65; }
+.popup-body p { margin: 0 0 8px; white-space: pre-wrap; }
+.popup-body p:last-child { margin-bottom: 0; }
+.popup-body .dim { opacity: 0.5; }
+.popup-body .original { padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); font-size: 13px; }
+.popup-actions { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+.popup-actions button {
+  padding: 4px 9px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px;
+  border: 1px solid var(--border); background: transparent; color: var(--fg);
+}
+.popup-actions button:hover:not(:disabled) { border-color: var(--accent); }
+.popup-actions button:disabled { opacity: 0.45; cursor: default; }
