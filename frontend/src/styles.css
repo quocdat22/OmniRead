@@ -118,7 +118,9 @@ body {
 
 /* ---------------- Popup ---------------- */
 .popup {
-  z-index: 1000; width: min(520px, calc(100vw - 24px));
+  z-index: 1000;
+  min-width: min(260px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
   display: flex; flex-direction: column;
   background: var(--surface); color: var(--fg);
   border: 1px solid var(--border); border-radius: 10px;
