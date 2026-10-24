@@ -111,12 +111,3 @@ body {
 .popup-body { padding: 12px 14px; overflow: auto; line-height: 1.65; }
 .popup-body p { margin: 0 0 8px; white-space: pre-wrap; }
 .popup-body p:last-child { margin-bottom: 0; }
-.popup-body .dim { opacity: 0.5; }
-.popup-body .original { padding-top: 8px; border-top: 1px dashed var(--border); color: var(--muted); font-size: 13px; }
-.popup-actions { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
-.popup-actions button {
-  padding: 4px 9px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px;
-  border: 1px solid var(--border); background: transparent; color: var(--fg);
-}
-.popup-actions button:hover:not(:disabled) { border-color: var(--accent); }
-.popup-actions button:disabled { opacity: 0.45; cursor: default; }

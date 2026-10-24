@@ -38,8 +38,6 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   const [pages, setPages] = useState<Record<number, PageData>>({});
   const [selected, setSelected] = useState<Selection | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const [progress, restartProgress] = useProgress(bookId);
 
@@ -150,7 +148,6 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   // ---------------------------------------------------------------- chọn block / popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
-    setActionError(null);
     setSelected((prev) => (prev?.blockId === block.id ? null : { page: block.page, blockId: block.id, el }));
   }, []);
 
@@ -176,7 +173,6 @@ export default function Reader({ bookId }: { bookId: number }) {
       const el = next && document.querySelector<HTMLElement>(`[data-block-id="${next.id}"]`);
       if (!next || !el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
-      setActionError(null);
       setSelected({ page: next.page, blockId: next.id, el });
     },
     [orderedBlocks, selected],
@@ -192,23 +188,6 @@ export default function Reader({ bookId }: { bookId: number }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, move]);
-
-  async function retranslate() {
-    if (!selectedBlock) return;
-    setBusy(true);
-    setActionError(null);
-    try {
-      const nb = await api.retranslateBlock(selectedBlock.id);
-      setPages((p) => ({
-        ...p,
-        [nb.page]: { ...p[nb.page], blocks: p[nb.page].blocks.map((b) => (b.id === nb.id ? nb : b)) },
-      }));
-    } catch (e) {
-      setActionError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function retryErrors() {
     await api.retryBook(bookId);
@@ -314,12 +293,7 @@ export default function Reader({ bookId }: { bookId: number }) {
         <TranslationPopup
           block={selectedBlock}
           reference={selected.el}
-          busy={busy}
-          error={actionError}
           onClose={closePopup}
-          onPrev={() => move(-1)}
-          onNext={() => move(1)}
-          onRetranslate={retranslate}
         />
       )}
     </div>

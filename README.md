@@ -21,9 +21,8 @@
 - 🔍 **Giao diện đọc sách tương tác mượt mà**:
   - Render PDF độ nét cao theo `devicePixelRatio` bằng PDF.js (chỉ render trang trong viewport để tối ưu RAM).
   - Highlight trực quan các đoạn text trên nền tài liệu gốc.
-  - Popup nổi bám sát tọa độ khối văn bản (`@floating-ui/react`).
-  - Phím tắt tiện lợi: `ArrowRight` (đoạn tiếp), `ArrowLeft` (đoạn trước), `Escape` (đóng).
-  - Chức năng: Xem văn bản gốc, Sao chép bản dịch, Yêu cầu AI dịch lại đoạn đang chọn.
+  - Popup nổi tối giản bám sát tọa độ khối văn bản (`@floating-ui/react`).
+  - Phím tắt tiện lợi: `ArrowRight` (đoạn tiếp), `ArrowLeft` (đoạn trước), `Escape` (đóng popup).
   - Tự động lưu trang đọc dở vào `localStorage`.
 - 🛡️ **Tích hợp toàn diện & Sẵn sàng triển khai**:
   - **Single-port SPA Mode**: Backend FastAPI có thể phục vụ toàn bộ ứng dụng (cả Web UI và REST API) trên một cổng duy nhất (8000).
@@ -164,5 +163,4 @@ npm test
    - Bấm vào nút **"Đọc"** để mở sách.
    - Nhấp chuột vào bất kỳ đoạn văn bản nào trên trang PDF để hiển thị popup bản dịch tiếng Việt.
    - Dùng phím `←` / `→` trên bàn phím để đọc tiếp các đoạn liền kề.
-   - Bấm **"Bản gốc"** để đối chiếu với văn bản tiếng Anh.
-   - Bấm **"Dịch lại"** nếu muốn DeepSeek tinh chỉnh lại bản dịch của đoạn văn đó.
+   - Nhấn phím `Esc` hoặc nhấp chuột ra ngoài để đóng popup.
