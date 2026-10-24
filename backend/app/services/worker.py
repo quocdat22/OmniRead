@@ -13,7 +13,7 @@ import logging
 from app.config import settings
 from app.db import block_to_dict, connect
 from app.services.pdf_parser import PdfParseError, parse_pdf
-from app.services.translator import FatalTranslationError, TranslationError, Translator
+from app.services.translator import FatalTranslationError, Translator
 
 log = logging.getLogger(__name__)
 
@@ -183,32 +183,6 @@ class JobManager:
                         "UPDATE blocks SET status = 'error', error_msg = ? WHERE id = ?", (str(e)[:500], block_id)
                     )
                 await db.commit()
-
-    # ------------------------------------------------------------ dịch lại 1 block
-    async def retranslate_block(self, block_id: int) -> dict:
-        """Raises LookupError nếu không có block; TranslationError nếu dịch thất bại."""
-        async with connect() as db:
-            cur = await db.execute("SELECT * FROM blocks WHERE id = ?", (block_id,))
-            row = await cur.fetchone()
-        if row is None:
-            raise LookupError(block_id)
-        try:
-            translation = await self.translator.translate(row["text"])
-        except TranslationError as e:
-            async with connect() as db:
-                await db.execute(
-                    "UPDATE blocks SET status = 'error', error_msg = ? WHERE id = ?", (str(e)[:500], block_id)
-                )
-                await db.commit()
-            raise
-        async with connect() as db:
-            await db.execute(
-                "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
-                (translation, block_id),
-            )
-            await db.commit()
-            cur = await db.execute("SELECT * FROM blocks WHERE id = ?", (block_id,))
-            return block_to_dict(await cur.fetchone())
 
 
 manager = JobManager()

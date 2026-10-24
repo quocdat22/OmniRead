@@ -11,7 +11,6 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.config import settings
 from app.db import block_to_dict, connect, fetch_book, fetch_books
-from app.services.translator import TranslationError
 from app.services.worker import manager
 
 router = APIRouter()
@@ -160,16 +159,6 @@ async def retry_book(book_id: int):
     # total == 0 nghĩa là lần parse trước thất bại -> parse lại từ đầu
     manager.schedule(book_id, ingest=(book["total"] == 0))
     return {"ok": True}
-
-
-@router.post("/blocks/{block_id}/translate")
-async def retranslate_block(block_id: int):
-    try:
-        return await manager.retranslate_block(block_id)
-    except LookupError:
-        raise HTTPException(404, "Không tìm thấy block")
-    except TranslationError as e:
-        raise HTTPException(502, str(e))
 
 
 @router.delete("/books/{book_id}", status_code=204)
