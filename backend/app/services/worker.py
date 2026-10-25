@@ -9,26 +9,42 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections import defaultdict
 
 from app.config import settings
 from app.db import block_to_dict, connect
-from app.services.pdf_parser import PdfParseError, parse_pdf
+from app.services.pdf_parser import ParsedBlock, PdfParseError, parse_pdf
 from app.services.translator import FatalTranslationError, TranslationError, Translator
 
 log = logging.getLogger(__name__)
 
-# Nhận 1 block 'pending' (ưu tiên gần trang focus) và đánh dấu 'translating' trong 1 câu lệnh
+# Nhận 1 head block 'pending' (ưu tiên gần trang focus) và đánh dấu 'translating' trong 1 câu lệnh
 # nguyên tử -> nhiều worker không bao giờ lấy trùng. Cần SQLite >= 3.35 (RETURNING).
 _CLAIM_SQL = """
 UPDATE blocks SET status = 'translating'
 WHERE id = (
     SELECT id FROM blocks
-    WHERE book_id = ? AND status = 'pending'
+    WHERE book_id = ? AND status = 'pending' AND (group_id = id OR group_id IS NULL)
     ORDER BY ABS(page - ?), page, idx
     LIMIT 1
 )
-RETURNING id, text
+RETURNING id, group_id
 """
+
+
+def _join_group_texts(texts: list[str]) -> str:
+    res = ""
+    for t in texts:
+        t = t.strip()
+        if not t:
+            continue
+        if not res:
+            res = t
+        elif (res.endswith("-") or res.endswith("‐")) and len(res) > 1 and res[-2].isalpha() and t[:1].islower():
+            res = res[:-1] + t
+        else:
+            res += " " + t
+    return res
 
 
 class JobManager:
@@ -121,10 +137,29 @@ class JobManager:
                 "INSERT INTO pages (book_id, page, width, height) VALUES (?, ?, ?, ?)",
                 [(book_id, p.number, p.width, p.height) for p in doc.pages],
             )
-            await db.executemany(
-                "INSERT INTO blocks (book_id, page, idx, text, bbox) VALUES (?, ?, ?, ?, ?)",
-                [(book_id, b.page, b.idx, b.text, json.dumps(b.bbox)) for b in doc.blocks],
-            )
+
+            # Gom parsed blocks theo group_key để lưu group_id
+            groups_dict: dict[int, list[ParsedBlock]] = defaultdict(list)
+            for b in doc.blocks:
+                groups_dict[b.group_key].append(b)
+
+            for group_blocks in groups_dict.values():
+                head = group_blocks[0]
+                cur = await db.execute(
+                    "INSERT INTO blocks (book_id, page, idx, text, bbox, part_no) VALUES (?, ?, ?, ?, ?, 0)",
+                    (book_id, head.page, head.idx, head.text, json.dumps(head.bbox)),
+                )
+                head_id = cur.lastrowid
+                await db.execute("UPDATE blocks SET group_id = ? WHERE id = ?", (head_id, head_id))
+                if len(group_blocks) > 1:
+                    await db.executemany(
+                        "INSERT INTO blocks (book_id, page, idx, text, bbox, group_id, part_no) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        [
+                            (book_id, child.page, child.idx, child.text, json.dumps(child.bbox), head_id, child.part_no)
+                            for child in group_blocks[1:]
+                        ],
+                    )
+
             await db.execute(
                 "UPDATE books SET page_count = ?, title = COALESCE(?, title), status = 'translating' WHERE id = ?",
                 (len(doc.pages), doc.title, book_id),
@@ -167,20 +202,45 @@ class JobManager:
                 await db.commit()
                 if not rows:
                     return
-                block_id, text = rows[0]["id"], rows[0]["text"]
+                head_id = rows[0]["id"]
+                gid = rows[0]["group_id"] or head_id
+
+                # Đánh dấu toàn bộ mảnh trong nhóm sang 'translating'
+                await db.execute(
+                    "UPDATE blocks SET status = 'translating' WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                    (book_id, gid, gid),
+                )
+                await db.commit()
+
+                # Lấy toàn bộ text của nhóm theo thứ tự part_no
+                cur = await db.execute(
+                    "SELECT text FROM blocks WHERE book_id = ? AND (group_id = ? OR id = ?) ORDER BY part_no",
+                    (book_id, gid, gid),
+                )
+                text_rows = await cur.fetchall()
+                combined_text = _join_group_texts([r["text"] for r in text_rows])
+
                 try:
-                    translation = await self.translator.translate(text)
+                    translation = await self.translator.translate(combined_text)
                     await db.execute(
                         "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
-                        (translation, block_id),
+                        (translation, head_id),
+                    )
+                    await db.execute(
+                        "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                        (book_id, gid, gid),
                     )
                 except FatalTranslationError as e:
                     self._fatal[book_id] = str(e)
-                    await db.execute("UPDATE blocks SET status = 'pending' WHERE id = ?", (block_id,))
-                except Exception as e:  # noqa: BLE001
-                    log.warning("Block %s lỗi: %s", block_id, e)
                     await db.execute(
-                        "UPDATE blocks SET status = 'error', error_msg = ? WHERE id = ?", (str(e)[:500], block_id)
+                        "UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                        (book_id, gid, gid),
+                    )
+                except Exception as e:  # noqa: BLE001
+                    log.warning("Group %s lỗi: %s", gid, e)
+                    await db.execute(
+                        "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                        (str(e)[:500], book_id, gid, gid),
                     )
                 await db.commit()
 
@@ -192,22 +252,56 @@ class JobManager:
             row = await cur.fetchone()
         if row is None:
             raise LookupError(block_id)
+
+        gid = row["group_id"] or row["id"]
+        book_id = row["book_id"]
+
+        async with connect() as db:
+            cur = await db.execute(
+                "SELECT text FROM blocks WHERE book_id = ? AND (group_id = ? OR id = ?) ORDER BY part_no",
+                (book_id, gid, gid),
+            )
+            text_rows = await cur.fetchall()
+            combined_text = _join_group_texts([r["text"] for r in text_rows])
+
         try:
-            translation = await self.translator.translate(row["text"])
+            translation = await self.translator.translate(combined_text)
         except TranslationError as e:
             async with connect() as db:
                 await db.execute(
-                    "UPDATE blocks SET status = 'error', error_msg = ? WHERE id = ?", (str(e)[:500], block_id)
+                    "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                    (str(e)[:500], book_id, gid, gid),
                 )
                 await db.commit()
             raise
+
         async with connect() as db:
             await db.execute(
                 "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
-                (translation, block_id),
+                (translation, gid),
+            )
+            await db.execute(
+                "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                (book_id, gid, gid),
             )
             await db.commit()
-            cur = await db.execute("SELECT * FROM blocks WHERE id = ?", (block_id,))
+
+            cur = await db.execute(
+                """
+                SELECT 
+                    b.id, b.book_id, b.page, b.idx, b.text, b.bbox,
+                    COALESCE(h.translation, b.translation) AS translation,
+                    COALESCE(h.status, b.status)           AS status,
+                    COALESCE(h.error_msg, b.error_msg)     AS error_msg,
+                    COALESCE(b.group_id, b.id)             AS group_id,
+                    b.part_no,
+                    (SELECT COUNT(*) FROM blocks g WHERE g.book_id = b.book_id AND COALESCE(g.group_id, g.id) = COALESCE(b.group_id, b.id)) AS group_size
+                FROM blocks b
+                LEFT JOIN blocks h ON h.id = b.group_id
+                WHERE b.id = ?
+                """,
+                (block_id,),
+            )
             return block_to_dict(await cur.fetchone())
 
 

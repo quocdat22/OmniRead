@@ -42,6 +42,11 @@ export default function TranslationPopup({
     <FloatingPortal>
       <div ref={refs.setFloating} style={floatingStyles} className="popup" {...getFloatingProps()}>
         <div className="popup-body">
+          {block.group_size > 1 && (
+            <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>
+              Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})
+            </div>
+          )}
           {ready ? (
             <p><FormattedText text={block.translation!} /></p>
           ) : block.status === "error" ? (

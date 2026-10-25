@@ -6,6 +6,7 @@ Quy trình:
   3. Gom các dòng thành đoạn văn bằng heuristic: cỡ chữ, khoảng cách dòng,
      thụt đầu dòng, dấu câu cuối dòng, ký hiệu bullet.
   4. Nối dòng + xử lý gạch nối cuối dòng ("exam-" + "ple" -> "example").
+  5. Liên kết đoạn văn bị ngắt qua trang (_link_page_continuations).
 
 Tọa độ bbox: đơn vị point, gốc ở góc TRÊN-TRÁI, theo hệ tọa độ của page.rect.
 Frontend nhân với (canvasWidth / page.width) để định vị overlay.
@@ -13,7 +14,7 @@ Frontend nhân với (canvasWidth / page.width) để định vị overlay.
 from __future__ import annotations
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,6 +44,8 @@ class ParsedBlock:
     idx: int  # thứ tự trong trang
     text: str
     bbox: tuple[float, float, float, float]
+    group_key: int = 0  # Mã nhóm tạm thời khi parse
+    part_no: int = 0    # Thứ tự mảnh trong nhóm (0, 1, ...)
 
 
 @dataclass
@@ -92,7 +95,7 @@ _CLEAN = str.maketrans(
     }
 )
 _ENDS_SENTENCE = re.compile(r"""[.!?…:;"”’')\]]\s*$""")
-_BULLET = re.compile(r"^\s*(?:[•●▪■◦‣*\-–—]|\(?\d{1,3}[.)]|\(?[a-zA-Z][.)])\s+")
+_BULLET = re.compile(r"^\s*(?:[•●▪■◦‣*–—]|\(?\d{1,3}[.)]|\(?[a-zA-Z][.)])\s+")
 _PAGE_NO = re.compile(r"^(?:page\s+)?(?:\d{1,4}|[ivxlcdm]{1,7})(?:\s*(?:of|/)\s*\d{1,4})?$", re.I)
 
 
@@ -193,7 +196,7 @@ def _repeated_margin_signatures(
     counter: Counter[str] = Counter()
     for raws, pg in zip(raw_per_page, pages):
         counter.update({_signature(b.text) for b in raws if _in_margin(b, pg.height)})
-    threshold = max(3, int(len(pages) * 0.3))
+    threshold = max(2, int(len(pages) * 0.3)) if len(pages) >= 2 else 1
     return {sig for sig, c in counter.items() if sig and c >= threshold}
 
 
@@ -305,17 +308,12 @@ def _format_paragraph(lines: list[_Line]) -> str:
     # Gán active tags cho từng span
     tokens: list[_FormattedToken] = []
     for s in all_spans:
-        # 1. Đoạn toàn bộ là tiêu đề đậm (baseline >= 600)
-        # 2. Hoặc span là Bold/SemiBold (>= 600) và đậm hơn baseline
-        # 3. Hoặc span là Medium (500) và đậm hơn baseline (Regular 400 / Light 300)
         if baseline_weight >= 600:
             active_bold = True
         else:
             active_bold = (s.weight >= 600) or (s.weight >= 500 and s.weight > baseline_weight)
 
         active_italic = s.italic if not baseline_italic else True
-
-        # Bất kỳ màu nào không phải màu đen/xám tối trung tính thì giữ nguyên màu sắc
         active_color = _hex_color(s.color) if not _is_neutral_dark(s.color) else None
 
         tokens.append(_FormattedToken(s.text, active_bold, active_italic, active_color))
@@ -388,10 +386,221 @@ def _join_lines(lines: list[_Line]) -> str:
         if not text:
             text = t
         elif text.endswith("-") and len(text) > 1 and text[-2].isalpha() and t[:1].islower():
-            text = text[:-1] + t  # "exam-" + "ple"  (compound "well-known" cũng bị nối: chấp nhận)
+            text = text[:-1] + t  # "exam-" + "ple" (compound "well-known" cũng bị nối: chấp nhận)
         else:
             text += " " + t
     return text
+
+
+# ---------------------------------------------------------------- bước 5: gom đoạn qua trang
+class _DisjointSet:
+    def __init__(self, n: int) -> None:
+        self.parent = list(range(n))
+
+    def find(self, i: int) -> int:
+        if self.parent[i] == i:
+            return i
+        self.parent[i] = self.find(self.parent[i])
+        return self.parent[i]
+
+    def union(self, i: int, j: int) -> None:
+        root_i = self.find(i)
+        root_j = self.find(j)
+        if root_i != root_j:
+            self.parent[root_j] = root_i
+
+
+@dataclass
+class _BlockCandidate:
+    index: int  # Chỉ số toàn cục trong danh sách blocks
+    block: ParsedBlock
+    lines: list[_Line]
+    avg_size: float
+    font: str
+    is_heading: bool = False
+    is_footnote: bool = False
+    is_body: bool = True
+
+
+def _score_continuation(
+    a: _BlockCandidate,
+    b: _BlockCandidate,
+    page_p_left: float,
+    page_p_right: float,
+    page_q_left: float,
+    page_q_right: float,
+    body_font_size: float,
+) -> float:
+    first_line_b = b.lines[0]
+    last_line_a = a.lines[-1]
+
+    # Loại trừ cứng (Hard Rejections)
+    if _BULLET.match(first_line_b.text):
+        return 0.0
+    if abs(a.avg_size - b.avg_size) > 0.8:
+        return 0.0
+    if not a.is_body or not b.is_body:
+        return 0.0
+
+    # Nếu B thụt đầu dòng (indent rõ rệt so với lề thân bài) -> đoạn mới
+    if (first_line_b.x0 - page_q_left) > 0.8 * body_font_size:
+        return 0.0
+
+    clean_a = re.sub(r"<[^>]+>", "", a.block.text).strip()
+    clean_b = re.sub(r"<[^>]+>", "", b.block.text).strip()
+    if not clean_a or not clean_b:
+        return 0.0
+
+    ends_sentence = bool(_ENDS_SENTENCE.search(clean_a))
+    last_line_gap = page_p_right - last_line_a.x1
+    # Nếu A kết thúc câu tự nhiên và dòng cuối thụt vào sâu so với lề phải -> kết thúc đoạn
+    if ends_sentence and last_line_gap > 2.5 * body_font_size:
+        return 0.0
+
+    score = 0.0
+
+    # 1. Tín hiệu cuối block A
+    if not ends_sentence:
+        score += 2.0
+    elif clean_a.endswith((",", ";", ":")):
+        score += 2.0
+
+    has_hyphen = (
+        (clean_a.endswith("-") or clean_a.endswith("‐"))
+        and len(clean_a) > 1
+        and clean_a[-2].isalpha()
+    )
+    if has_hyphen:
+        score += 1.5
+
+    last_words = clean_a.split()
+    if last_words:
+        last_w = last_words[-1].lower()
+        if last_w in ("and", "or", "the", "that", "of", "to", "in", "with", "for", "as", "by", "from", "on", "at", "which"):
+            score += 1.0
+
+    # 2. Tín hiệu đầu block B
+    first_char = clean_b[:1]
+    if first_char.islower():
+        score += 2.0
+        if has_hyphen:
+            score += 1.5
+    elif ends_sentence:
+        # A kết thúc câu VÀ B bắt đầu chữ in hoa -> khả năng cao là 2 đoạn độc lập
+        score -= 3.0
+
+    # 3. Hình học / Lề
+    # Dòng cuối của A chạm sát lề phải cột/trang
+    if last_line_a.x1 >= page_p_right - 1.5 * body_font_size:
+        score += 1.0
+
+    # Dòng đầu của B không thụt lề (bắt đầu sát lề trái)
+    if abs(first_line_b.x0 - page_q_left) <= 0.6 * body_font_size:
+        score += 0.5
+
+    # 4. Font chữ tương đồng
+    if a.font and b.font:
+        f_a = a.font.lower().split("-")[0].split("+")[-1]
+        f_b = b.font.lower().split("-")[0].split("+")[-1]
+        if f_a == f_b:
+            score += 0.5
+
+    return score
+
+
+def _link_page_continuations(
+    blocks: list[ParsedBlock],
+    candidates: list[_BlockCandidate],
+    pages: list[ParsedPage],
+) -> None:
+    if not blocks or len(pages) <= 1:
+        for i, b in enumerate(blocks):
+            b.group_key = i
+            b.part_no = 0
+        return
+
+    # 1. Tính cỡ chữ thân bài (body_font_size)
+    all_sizes = [l.size for c in candidates for l in c.lines]
+    counter = Counter(round(s, 1) for s in all_sizes)
+    body_font_size = counter.most_common(1)[0][0] if counter else 11.0
+
+    # 2. Phân loại block thân bài vs tiêu đề vs footnote
+    for c in candidates:
+        c.is_heading = (c.avg_size > body_font_size + 1.2) or (
+            len(c.lines) <= 2
+            and c.avg_size >= body_font_size
+            and all(s.weight >= 600 for ln in c.lines for s in ln.spans)
+        )
+        c.is_footnote = c.avg_size < body_font_size - 1.2
+        c.is_body = (not c.is_heading) and (not c.is_footnote) and (abs(c.avg_size - body_font_size) <= 1.0)
+
+    # 3. Gom candidates theo trang và tính lề thân bài cho từng trang
+    page_cands: dict[int, list[_BlockCandidate]] = defaultdict(list)
+    for c in candidates:
+        page_cands[c.block.page].append(c)
+
+    page_margins: dict[int, tuple[float, float]] = {}
+    for pg in pages:
+        p_num = pg.number
+        body_lines = [l for c in page_cands[p_num] if c.is_body for l in c.lines]
+        if body_lines:
+            p_left = min(l.x0 for l in body_lines)
+            p_right = max(l.x1 for l in body_lines)
+        else:
+            p_left = pg.width * 0.1
+            p_right = pg.width * 0.9
+        page_margins[p_num] = (p_left, p_right)
+
+    dsu = _DisjointSet(len(blocks))
+
+    # 4. Duyệt qua ranh giới các trang
+    max_gap = settings.continuation_max_gap_pages
+    for p_idx, pg in enumerate(pages):
+        p_num = pg.number
+        body_on_p = [c for c in page_cands[p_num] if c.is_body]
+        if not body_on_p:
+            continue
+        cand_a = body_on_p[-1]
+
+        # Tìm trang q kế tiếp có block
+        for next_offset in range(1, max_gap + 2):
+            q_idx = p_idx + next_offset
+            if q_idx >= len(pages):
+                break
+            q_num = pages[q_idx].number
+            body_on_q = [c for c in page_cands[q_num] if c.is_body]
+            if not body_on_q:
+                # Trang trống hoặc chỉ có hình ảnh -> cho phép nhảy qua
+                continue
+
+            cand_b = body_on_q[0]
+
+            # Nếu trước cand_b trên trang q có tiêu đề -> không thể nối qua trang
+            headings_before_b = [c for c in page_cands[q_num] if c.index < cand_b.index and c.is_heading]
+            if headings_before_b:
+                break
+
+            p_left, p_right = page_margins[p_num]
+            q_left, q_right = page_margins[q_num]
+
+            score = _score_continuation(
+                cand_a, cand_b, p_left, p_right, q_left, q_right, body_font_size
+            )
+            if score >= settings.continuation_threshold:
+                dsu.union(cand_a.index, cand_b.index)
+            # Đã xét trang nội dung kế tiếp, không duyệt xa hơn
+            break
+
+    # 5. Gom nhóm và gán group_key, part_no
+    groups: dict[int, list[int]] = defaultdict(list)
+    for i in range(len(blocks)):
+        groups[dsu.find(i)].append(i)
+
+    for root, indices in groups.items():
+        indices.sort(key=lambda idx: (blocks[idx].page, blocks[idx].idx))
+        for part_no, block_idx in enumerate(indices):
+            blocks[block_idx].group_key = root
+            blocks[block_idx].part_no = part_no
 
 
 # ---------------------------------------------------------------- API chính
@@ -429,6 +638,7 @@ def parse_pdf(path: Path) -> ParsedDocument:
         repeated = _repeated_margin_signatures(raw_per_page, pages)
 
         blocks: list[ParsedBlock] = []
+        candidates: list[_BlockCandidate] = []
         for pg, raws in zip(pages, raw_per_page):
             kept = [b for b in raws if not _is_noise(b, pg.height, repeated)]
             lines = [l for b in kept for l in b.lines]
@@ -443,8 +653,21 @@ def parse_pdf(path: Path) -> ParsedDocument:
                     round(min(l.x0 for l in group), 2), round(min(l.y0 for l in group), 2),
                     round(max(l.x1 for l in group), 2), round(max(l.y1 for l in group), 2),
                 )
-                blocks.append(ParsedBlock(pg.number, idx, text, bbox))
+                block = ParsedBlock(pg.number, idx, text, bbox)
+                cand_idx = len(blocks)
+                blocks.append(block)
+
+                avg_sz = sum(l.size for l in group) / max(1, len(group))
+                font = group[0].spans[0].font if group[0].spans else ""
+                candidates.append(_BlockCandidate(cand_idx, block, group, avg_sz, font))
                 idx += 1
+
+        if settings.enable_continuation_merge:
+            _link_page_continuations(blocks, candidates, pages)
+        else:
+            for i, b in enumerate(blocks):
+                b.group_key = i
+                b.part_no = 0
 
         title = ((doc.metadata or {}).get("title") or "").strip() or None
         return ParsedDocument(title=title, pages=pages, blocks=blocks)

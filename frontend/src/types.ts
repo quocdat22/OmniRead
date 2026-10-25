@@ -24,6 +24,9 @@ export interface Block {
   translation: string | null;
   status: BlockStatus;
   error_msg: string | null;
+  group_id: number;
+  part_no: number;
+  group_size: number;
 }
 
 export interface PageData {

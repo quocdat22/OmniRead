@@ -22,6 +22,7 @@ function readSavedPage(id: number): number {
 interface Selection {
   page: number;
   blockId: number;
+  groupId: number;
   el: HTMLElement;
 }
 
@@ -148,7 +149,11 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   // ---------------------------------------------------------------- chọn block / popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
-    setSelected((prev) => (prev?.blockId === block.id ? null : { page: block.page, blockId: block.id, el }));
+    setSelected((prev) =>
+      prev?.blockId === block.id
+        ? null
+        : { page: block.page, blockId: block.id, groupId: block.group_id, el },
+    );
   }, []);
 
   const closePopup = useCallback(() => setSelected(null), []);
@@ -168,12 +173,38 @@ export default function Reader({ bookId }: { bookId: number }) {
   const move = useCallback(
     (delta: number) => {
       if (!selected) return;
-      const i = orderedBlocks.findIndex((b) => b.id === selected.blockId);
-      const next = orderedBlocks[i + delta];
-      const el = next && document.querySelector<HTMLElement>(`[data-block-id="${next.id}"]`);
+      const currentGroupId = selected.groupId;
+      const currentIndex = orderedBlocks.findIndex((b) => b.id === selected.blockId);
+      if (currentIndex === -1) return;
+
+      let nextIndex = currentIndex;
+      if (delta > 0) {
+        for (let i = currentIndex + 1; i < orderedBlocks.length; i++) {
+          if (orderedBlocks[i].group_id !== currentGroupId) {
+            nextIndex = i;
+            break;
+          }
+        }
+      } else {
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          if (orderedBlocks[i].group_id !== currentGroupId) {
+            const targetGroupId = orderedBlocks[i].group_id;
+            let firstPiece = i;
+            while (firstPiece > 0 && orderedBlocks[firstPiece - 1].group_id === targetGroupId) {
+              firstPiece--;
+            }
+            nextIndex = firstPiece;
+            break;
+          }
+        }
+      }
+
+      if (nextIndex === currentIndex) return;
+      const next = orderedBlocks[nextIndex];
+      const el = document.querySelector<HTMLElement>(`[data-block-id="${next.id}"]`);
       if (!next || !el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
-      setSelected({ page: next.page, blockId: next.id, el });
+      setSelected({ page: next.page, blockId: next.id, groupId: next.group_id, el });
     },
     [orderedBlocks, selected],
   );
@@ -280,7 +311,7 @@ export default function Reader({ bookId }: { bookId: number }) {
               cssWidth={cssWidth}
               aspect={aspects[n] ?? defaultAspect}
               data={pages[n]}
-              selectedBlockId={selected?.page === n ? selected.blockId : null}
+              selectedGroupId={selected?.groupId ?? null}
               onAspect={onAspect}
               onNear={onNear}
               onCenter={onCenter}

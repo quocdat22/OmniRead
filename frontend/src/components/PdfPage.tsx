@@ -9,7 +9,7 @@ interface Props {
   cssWidth: number;
   aspect: number; // height / width, dùng cho placeholder trước khi render
   data?: PageData;
-  selectedBlockId: number | null;
+  selectedGroupId: number | null;
   onAspect: (page: number, aspect: number) => void;
   onNear: (page: number, near: boolean) => void;
   onCenter: (page: number) => void;
@@ -17,7 +17,7 @@ interface Props {
 }
 
 function PdfPage({
-  pdf, pageNumber, cssWidth, aspect, data, selectedBlockId,
+  pdf, pageNumber, cssWidth, aspect, data, selectedGroupId,
   onAspect, onNear, onCenter, onSelectBlock,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -102,7 +102,7 @@ function PdfPage({
               block={b}
               pageWidth={data.page.width}
               pageHeight={data.page.height}
-              selected={b.id === selectedBlockId}
+              selected={b.group_id === selectedGroupId}
               onSelect={onSelectBlock}
             />
           ))}

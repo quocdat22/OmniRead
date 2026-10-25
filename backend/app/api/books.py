@@ -107,7 +107,23 @@ async def get_blocks(book_id: int, page: int = Query(..., ge=1)):
         pg = await cur.fetchone()
         if pg is None:
             raise HTTPException(404, "Trang không tồn tại")
-        cur = await db.execute("SELECT * FROM blocks WHERE book_id = ? AND page = ? ORDER BY idx", (book_id, page))
+        cur = await db.execute(
+            """
+            SELECT 
+                b.id, b.book_id, b.page, b.idx, b.text, b.bbox,
+                COALESCE(h.translation, b.translation) AS translation,
+                COALESCE(h.status, b.status)           AS status,
+                COALESCE(h.error_msg, b.error_msg)     AS error_msg,
+                COALESCE(b.group_id, b.id)             AS group_id,
+                b.part_no,
+                (SELECT COUNT(*) FROM blocks g WHERE g.book_id = b.book_id AND COALESCE(g.group_id, g.id) = COALESCE(b.group_id, b.id)) AS group_size
+            FROM blocks b
+            LEFT JOIN blocks h ON h.id = b.group_id
+            WHERE b.book_id = ? AND b.page = ?
+            ORDER BY b.idx
+            """,
+            (book_id, page),
+        )
         rows = await cur.fetchall()
 
     manager.set_focus(book_id, page)  # side-effect có chủ đích: ưu tiên dịch quanh trang đang đọc

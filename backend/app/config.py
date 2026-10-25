@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     sort_blocks: bool = False
     margin_ratio: float = 0.09  # vùng đầu/cuối trang để dò header/footer/số trang
 
+    # --- Nối đoạn văn (Continuation merge) ---
+    enable_continuation_merge: bool = True
+    continuation_threshold: float = 2.0  # Điểm tối thiểu để ghép 2 mảnh
+    continuation_max_gap_pages: int = 1  # Số trang trống/ảnh tối đa được phép bỏ qua
+
     cors_origins: str | list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

@@ -8,39 +8,14 @@ import aiosqlite
 from app.config import settings
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS books (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  title      TEXT NOT NULL,
-  filename   TEXT NOT NULL,
-  file_hash  TEXT NOT NULL UNIQUE,
-  page_count INTEGER NOT NULL DEFAULT 0,
-  -- parsing | translating | done | partial (còn block lỗi) | error
-  status     TEXT NOT NULL DEFAULT 'parsing',
-  error_msg  TEXT,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE IF NOT EXISTS books (\n  id         INTEGER PRIMARY KEY AUTOINCREMENT,\n  title      TEXT NOT NULL,\n  filename   TEXT NOT NULL,\n  file_hash  TEXT NOT NULL UNIQUE,\n  page_count INTEGER NOT NULL DEFAULT 0,\n  -- parsing | translating | done | partial (còn block lỗi) | error\n  status     TEXT NOT NULL DEFAULT 'parsing',\n  error_msg  TEXT,\n  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n);
 
-CREATE TABLE IF NOT EXISTS pages (
-  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-  page    INTEGER NOT NULL,
-  width   REAL NOT NULL,
-  height  REAL NOT NULL,
-  PRIMARY KEY (book_id, page)
-);
+CREATE TABLE IF NOT EXISTS pages (\n  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,\n  page    INTEGER NOT NULL,\n  width   REAL NOT NULL,\n  height  REAL NOT NULL,\n  PRIMARY KEY (book_id, page)\n);
 
-CREATE TABLE IF NOT EXISTS blocks (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
-  page        INTEGER NOT NULL,
-  idx         INTEGER NOT NULL,
-  text        TEXT NOT NULL,
-  bbox        TEXT NOT NULL,            -- JSON [x0, y0, x1, y1], đơn vị point, gốc trên-trái
-  translation TEXT,
-  status      TEXT NOT NULL DEFAULT 'pending',  -- pending | translating | done | error
-  error_msg   TEXT
-);
+CREATE TABLE IF NOT EXISTS blocks (\n  id          INTEGER PRIMARY KEY AUTOINCREMENT,\n  book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,\n  page        INTEGER NOT NULL,\n  idx         INTEGER NOT NULL,\n  text        TEXT NOT NULL,\n  bbox        TEXT NOT NULL,            -- JSON [x0, y0, x1, y1], đơn vị point, gốc trên-trái\n  translation TEXT,\n  status      TEXT NOT NULL DEFAULT 'pending',  -- pending | translating | done | error\n  error_msg   TEXT,\n  group_id    INTEGER,                  -- id của block đầu nhóm; NULL/tự trỏ nếu đứng một mình\n  part_no     INTEGER NOT NULL DEFAULT 0 -- thứ tự mảnh trong nhóm\n);
 CREATE INDEX IF NOT EXISTS idx_blocks_page   ON blocks(book_id, page, idx);
 CREATE INDEX IF NOT EXISTS idx_blocks_status ON blocks(book_id, status);
+CREATE INDEX IF NOT EXISTS idx_blocks_group  ON blocks(book_id, group_id, part_no);
 """
 
 
@@ -61,6 +36,16 @@ async def init_db() -> None:
     async with connect() as db:
         await db.execute("PRAGMA journal_mode = WAL")
         await db.executescript(SCHEMA)
+
+        # Migration cho database cũ nếu thiếu cột group_id hoặc part_no
+        cur = await db.execute("PRAGMA table_info(blocks)")
+        columns = {row["name"] for row in await cur.fetchall()}
+        if "group_id" not in columns:
+            await db.execute("ALTER TABLE blocks ADD COLUMN group_id INTEGER")
+        if "part_no" not in columns:
+            await db.execute("ALTER TABLE blocks ADD COLUMN part_no INTEGER NOT NULL DEFAULT 0")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_group ON blocks(book_id, group_id, part_no)")
+
         await db.commit()
 
 
@@ -89,6 +74,10 @@ async def fetch_book(db: aiosqlite.Connection, book_id: int) -> dict | None:
 
 
 def block_to_dict(r: aiosqlite.Row) -> dict:
+    row_keys = r.keys()
+    gid = r["group_id"] if "group_id" in row_keys and r["group_id"] is not None else r["id"]
+    part_no = r["part_no"] if "part_no" in row_keys else 0
+    group_size = r["group_size"] if "group_size" in row_keys else 1
     return {
         "id": r["id"],
         "page": r["page"],
@@ -98,4 +87,7 @@ def block_to_dict(r: aiosqlite.Row) -> dict:
         "translation": r["translation"],
         "status": r["status"],
         "error_msg": r["error_msg"],
+        "group_id": gid,
+        "part_no": part_no,
+        "group_size": group_size,
     }
