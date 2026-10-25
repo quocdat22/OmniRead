@@ -14,7 +14,7 @@ from collections import defaultdict
 from app.config import settings
 from app.db import block_to_dict, connect
 from app.services.pdf_parser import ParsedBlock, PdfParseError, parse_pdf
-from app.services.translator import FatalTranslationError, TranslationError, Translator
+from app.services.translator import FatalTranslationError, Translator
 
 log = logging.getLogger(__name__)
 
@@ -243,66 +243,6 @@ class JobManager:
                         (str(e)[:500], book_id, gid, gid),
                     )
                 await db.commit()
-
-    # ------------------------------------------------------------ dịch lại 1 block
-    async def retranslate_block(self, block_id: int) -> dict:
-        """Raises LookupError nếu không có block; TranslationError nếu dịch thất bại."""
-        async with connect() as db:
-            cur = await db.execute("SELECT * FROM blocks WHERE id = ?", (block_id,))
-            row = await cur.fetchone()
-        if row is None:
-            raise LookupError(block_id)
-
-        gid = row["group_id"] or row["id"]
-        book_id = row["book_id"]
-
-        async with connect() as db:
-            cur = await db.execute(
-                "SELECT text FROM blocks WHERE book_id = ? AND (group_id = ? OR id = ?) ORDER BY part_no",
-                (book_id, gid, gid),
-            )
-            text_rows = await cur.fetchall()
-            combined_text = _join_group_texts([r["text"] for r in text_rows])
-
-        try:
-            translation = await self.translator.translate(combined_text)
-        except TranslationError as e:
-            async with connect() as db:
-                await db.execute(
-                    "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                    (str(e)[:500], book_id, gid, gid),
-                )
-                await db.commit()
-            raise
-
-        async with connect() as db:
-            await db.execute(
-                "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
-                (translation, gid),
-            )
-            await db.execute(
-                "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                (book_id, gid, gid),
-            )
-            await db.commit()
-
-            cur = await db.execute(
-                """
-                SELECT 
-                    b.id, b.book_id, b.page, b.idx, b.text, b.bbox,
-                    COALESCE(h.translation, b.translation) AS translation,
-                    COALESCE(h.status, b.status)           AS status,
-                    COALESCE(h.error_msg, b.error_msg)     AS error_msg,
-                    COALESCE(b.group_id, b.id)             AS group_id,
-                    b.part_no,
-                    (SELECT COUNT(*) FROM blocks g WHERE g.book_id = b.book_id AND COALESCE(g.group_id, g.id) = COALESCE(b.group_id, b.id)) AS group_size
-                FROM blocks b
-                LEFT JOIN blocks h ON h.id = b.group_id
-                WHERE b.id = ?
-                """,
-                (block_id,),
-            )
-            return block_to_dict(await cur.fetchone())
 
 
 manager = JobManager()

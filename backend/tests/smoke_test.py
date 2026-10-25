@@ -93,8 +93,6 @@ def main() -> None:
         assert r["page"]["width"] > 0 and len(r["blocks"]) == 4
         assert all(b["translation"].startswith("[VI] ") for b in r["blocks"])
 
-        bid = r["blocks"][0]["id"]
-        assert c.post(f"/api/blocks/{bid}/translate").status_code == 200
         assert c.get(f"/api/books/{book_id}/file").headers["content-type"] == "application/pdf"
         assert c.get(f"/api/books/{book_id}/blocks", params={"page": 99}).status_code == 404
 

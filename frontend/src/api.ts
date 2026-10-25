@@ -1,4 +1,4 @@
-import type { Block, Book, PageData } from "./types";
+import type { Book, PageData } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -42,8 +42,6 @@ export const api = {
   deleteBook: (id: number) => request<void>(`/books/${id}`, { method: "DELETE" }),
   retryBook: (id: number) => request<{ ok: boolean }>(`/books/${id}/retry`, { method: "POST" }),
   getBlocks: (id: number, page: number) => request<PageData>(`/books/${id}/blocks?page=${page}`),
-  retranslateBlock: (blockId: number) =>
-    request<Block>(`/blocks/${blockId}/translate`, { method: "POST" }),
   fileUrl: (id: number) => `${API_BASE}/books/${id}/file`,
   progressUrl: (id: number) => `${API_BASE}/books/${id}/progress`,
 };

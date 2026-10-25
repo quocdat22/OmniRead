@@ -105,15 +105,12 @@ def test_cross_page_detection(tmp_path: Path):
     create_continuation_pdf(pdf_path)
 
     doc = parse_pdf(pdf_path)
-    # Trang 1 có: 1 heading + 1 body block
-    # Trang 2 có: 1 fragment block nối + 1 separate block
     p1_blocks = [b for b in doc.blocks if b.page == 1]
     p2_blocks = [b for b in doc.blocks if b.page == 2]
 
     assert len(p1_blocks) == 2, f"Expected 2 blocks on p1, got {len(p1_blocks)}"
     assert len(p2_blocks) == 2, f"Expected 2 blocks on p2, got {len(p2_blocks)}"
 
-    # Fragment cuối trang 1 và fragment đầu trang 2 phải cùng group_key
     frag1 = p1_blocks[-1]
     frag2 = p2_blocks[0]
 
@@ -121,7 +118,6 @@ def test_cross_page_detection(tmp_path: Path):
     assert frag1.part_no == 0
     assert frag2.part_no == 1
 
-    # Block thứ 2 của trang 2 không cùng group_key
     assert p2_blocks[1].group_key != frag1.group_key
     assert p2_blocks[1].part_no == 0
     print("test_cross_page_detection PASSED")
@@ -144,7 +140,6 @@ def test_negative_cases(tmp_path: Path):
     create_negative_pdf(pdf_path)
 
     doc = parse_pdf(pdf_path)
-    # Mỗi block phải độc lập
     group_keys = [b.group_key for b in doc.blocks]
     assert len(group_keys) == len(set(group_keys)), f"Some blocks were unexpectedly grouped: {group_keys}"
     for b in doc.blocks:
@@ -156,7 +151,6 @@ def test_end_to_end_worker_and_api(tmp_path: Path):
     pdf_path = tmp_path / "e2e_cont.pdf"
     create_continuation_pdf(pdf_path)
 
-    # Mock translator
     translated_inputs: list[str] = []
 
     async def mock_translate(text: str) -> str:
@@ -171,19 +165,16 @@ def test_end_to_end_worker_and_api(tmp_path: Path):
         assert res.status_code == 201
         book_id = res.json()["id"]
 
-        # Đợi pipeline dịch xong
         for _ in range(50):
             r = client.get(f"/api/books/{book_id}")
             if r.json()["status"] == "done":
                 break
             time.sleep(0.1)
 
-        # Kiểm tra blocks trang 1
         r1 = client.get(f"/api/books/{book_id}/blocks?page=1")
         assert r1.status_code == 200
         blocks_p1 = r1.json()["blocks"]
 
-        # Kiểm tra blocks trang 2
         r2 = client.get(f"/api/books/{book_id}/blocks?page=2")
         assert r2.status_code == 200
         blocks_p2 = r2.json()["blocks"]
@@ -191,26 +182,18 @@ def test_end_to_end_worker_and_api(tmp_path: Path):
         tail_p1 = blocks_p1[-1]
         head_p2 = blocks_p2[0]
 
-        # Cả 2 fragment phải có cùng group_id
         assert tail_p1["group_id"] == head_p2["group_id"]
         assert tail_p1["group_size"] == 2
         assert head_p2["group_size"] == 2
         assert tail_p1["part_no"] == 0
         assert head_p2["part_no"] == 1
 
-        # Cả 2 fragment phải có cùng bản dịch đầy đủ
         assert tail_p1["status"] == "done"
         assert head_p2["status"] == "done"
         assert tail_p1["translation"] == head_p2["translation"]
         assert "In our latest comprehensive analysis" in tail_p1["translation"]
         assert "revised before the next fiscal quarter" in tail_p1["translation"]
 
-        # Kiểm tra retranslate block ở fragment 2 (part_no = 1)
-        r_re = client.post(f"/api/blocks/{head_p2['id']}/translate")
-        assert r_re.status_code == 200
-        re_data = r_re.json()
-        assert re_data["group_id"] == head_p2["group_id"]
-        assert re_data["translation"] == tail_p1["translation"]
         print("test_end_to_end_worker_and_api PASSED")
 
 

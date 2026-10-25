@@ -23,13 +23,14 @@ export default function TranslationPopup({
     middleware: [
       offset(8),
       flip({ padding: 12, fallbackPlacements: ["top", "bottom"] }),
-      shift({ padding: 12 }),
       size({
         padding: 12,
-        apply({ availableHeight, elements }) {
+        apply({ rects, availableHeight, elements }) {
+          elements.floating.style.width = `${Math.round(rects.reference.width)}px`;
           elements.floating.style.maxHeight = `${Math.max(140, availableHeight)}px`;
         },
       }),
+      shift({ padding: 12 }),
     ],
   });
   // Esc + click ra ngoài để đóng.
