@@ -8,14 +8,41 @@ import aiosqlite
 from app.config import settings
 
 SCHEMA = """
-CREATE TABLE IF NOT EXISTS books (\n  id         INTEGER PRIMARY KEY AUTOINCREMENT,\n  title      TEXT NOT NULL,\n  filename   TEXT NOT NULL,\n  file_hash  TEXT NOT NULL UNIQUE,\n  page_count INTEGER NOT NULL DEFAULT 0,\n  -- parsing | translating | done | partial (còn block lỗi) | error\n  status     TEXT NOT NULL DEFAULT 'parsing',\n  error_msg  TEXT,\n  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP\n);
+CREATE TABLE IF NOT EXISTS books (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT NOT NULL,
+  filename   TEXT NOT NULL,
+  file_hash  TEXT NOT NULL UNIQUE,
+  page_count INTEGER NOT NULL DEFAULT 0,
+  -- parsing | translating | done | partial (còn block lỗi) | error
+  status     TEXT NOT NULL DEFAULT 'parsing',
+  error_msg  TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE TABLE IF NOT EXISTS pages (\n  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,\n  page    INTEGER NOT NULL,\n  width   REAL NOT NULL,\n  height  REAL NOT NULL,\n  PRIMARY KEY (book_id, page)\n);
+CREATE TABLE IF NOT EXISTS pages (
+  book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  page    INTEGER NOT NULL,
+  width   REAL NOT NULL,
+  height  REAL NOT NULL,
+  PRIMARY KEY (book_id, page)
+);
 
-CREATE TABLE IF NOT EXISTS blocks (\n  id          INTEGER PRIMARY KEY AUTOINCREMENT,\n  book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,\n  page        INTEGER NOT NULL,\n  idx         INTEGER NOT NULL,\n  text        TEXT NOT NULL,\n  bbox        TEXT NOT NULL,            -- JSON [x0, y0, x1, y1], đơn vị point, gốc trên-trái\n  translation TEXT,\n  status      TEXT NOT NULL DEFAULT 'pending',  -- pending | translating | done | error\n  error_msg   TEXT,\n  group_id    INTEGER,                  -- id của block đầu nhóm; NULL/tự trỏ nếu đứng một mình\n  part_no     INTEGER NOT NULL DEFAULT 0 -- thứ tự mảnh trong nhóm\n);
+CREATE TABLE IF NOT EXISTS blocks (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id     INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  page        INTEGER NOT NULL,
+  idx         INTEGER NOT NULL,
+  text        TEXT NOT NULL,
+  bbox        TEXT NOT NULL,            -- JSON [x0, y0, x1, y1], đơn vị point, gốc trên-trái
+  translation TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending',  -- pending | translating | done | error
+  error_msg   TEXT,
+  group_id    INTEGER,                  -- id của block đầu nhóm; NULL/tự trỏ nếu đứng một mình
+  part_no     INTEGER NOT NULL DEFAULT 0 -- thứ tự mảnh trong nhóm
+);
 CREATE INDEX IF NOT EXISTS idx_blocks_page   ON blocks(book_id, page, idx);
 CREATE INDEX IF NOT EXISTS idx_blocks_status ON blocks(book_id, status);
-CREATE INDEX IF NOT EXISTS idx_blocks_group  ON blocks(book_id, group_id, part_no);
 """
 
 
