@@ -79,22 +79,27 @@ export default function Library() {
     <div className="library">
       <div className="library-header">
         <h1>Thư viện OmniRead</h1>
-        {health && (
-          <div className="status-indicators">
-            <span className="status-badge live" title="Backend đã sẵn sàng">
-              ● API Online
-            </span>
-            {health.translator_configured ? (
-              <span className="status-badge success" title="DeepSeek API Key đã cấu hình">
-                ✓ DeepSeek OK
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {health && (
+            <div className="status-indicators">
+              <span className="status-badge live" title="Backend đã sẵn sàng">
+                ● API Online
               </span>
-            ) : (
-              <span className="status-badge warn" title="Chưa có DEEPSEEK_API_KEY trong .env">
-                ⚠️ Chưa cấu hình DeepSeek
-              </span>
-            )}
-          </div>
-        )}
+              {health.translator_configured ? (
+                <span className="status-badge success" title="DeepSeek API Key đã cấu hình">
+                  ✓ DeepSeek OK
+                </span>
+              ) : (
+                <span className="status-badge warn" title="Chưa có DEEPSEEK_API_KEY trong .env">
+                  ⚠️ Chưa cấu hình DeepSeek
+                </span>
+              )}
+            </div>
+          )}
+          <Link to="/settings" className="btn" title="Cài đặt">
+            ⚙️ Cài đặt
+          </Link>
+        </div>
       </div>
 
       {health && !health.translator_configured && (

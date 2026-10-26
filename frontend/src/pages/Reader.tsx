@@ -1,9 +1,11 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import PdfPage from "../components/PdfPage";
 import TranslationPopup from "../components/TranslationPopup";
+import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import { useProgress } from "../hooks/useProgress";
 import { pdfjs } from "../pdf";
 import type { Block, Book, PageData } from "../types";
@@ -40,6 +42,11 @@ export default function Reader({ bookId }: { bookId: number }) {
   const [pages, setPages] = useState<Record<number, PageData>>({});
   const [selected, setSelected] = useState<Selection | null>(null);
 
+  const {
+    style: highlightStyle,
+    padding: highlightPadding,
+    colorPreset,
+  } = useHighlightStyle();
   const [progress, restartProgress] = useProgress(bookId);
 
   const pagesRef = useRef(pages);
@@ -301,7 +308,17 @@ export default function Reader({ bookId }: { bookId: number }) {
       {error && <div className="notice err">{error}</div>}
       {!pdf && !error && <div className="notice">Đang tải PDF…</div>}
 
-      <main className="pages">
+      <main
+        className="pages"
+        data-highlight-style={highlightStyle}
+        style={
+          {
+            "--highlight-padding": `${highlightPadding}px`,
+            "--highlight-color": colorPreset.hex,
+            "--highlight-color-rgb": colorPreset.rgb,
+          } as React.CSSProperties
+        }
+      >
         {pdf &&
           pageNumbers.map((n) => (
             <PdfPage
