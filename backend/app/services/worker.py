@@ -146,16 +146,16 @@ class JobManager:
             for group_blocks in groups_dict.values():
                 head = group_blocks[0]
                 cur = await db.execute(
-                    "INSERT INTO blocks (book_id, page, idx, text, bbox, part_no) VALUES (?, ?, ?, ?, ?, 0)",
-                    (book_id, head.page, head.idx, head.text, json.dumps(head.bbox)),
+                    "INSERT INTO blocks (book_id, page, idx, text, bbox, part_no, font_size) VALUES (?, ?, ?, ?, ?, 0, ?)",
+                    (book_id, head.page, head.idx, head.text, json.dumps(head.bbox), head.font_size),
                 )
                 head_id = cur.lastrowid
                 await db.execute("UPDATE blocks SET group_id = ? WHERE id = ?", (head_id, head_id))
                 if len(group_blocks) > 1:
                     await db.executemany(
-                        "INSERT INTO blocks (book_id, page, idx, text, bbox, group_id, part_no) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO blocks (book_id, page, idx, text, bbox, group_id, part_no, font_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         [
-                            (book_id, child.page, child.idx, child.text, json.dumps(child.bbox), head_id, child.part_no)
+                            (book_id, child.page, child.idx, child.text, json.dumps(child.bbox), head_id, child.part_no, child.font_size)
                             for child in group_blocks[1:]
                         ],
                     )

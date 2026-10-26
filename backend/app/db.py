@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS blocks (
   status      TEXT NOT NULL DEFAULT 'pending',  -- pending | translating | done | error
   error_msg   TEXT,
   group_id    INTEGER,                  -- id của block đầu nhóm; NULL/tự trỏ nếu đứng một mình
-  part_no     INTEGER NOT NULL DEFAULT 0 -- thứ tự mảnh trong nhóm
+  part_no     INTEGER NOT NULL DEFAULT 0, -- thứ tự mảnh trong nhóm
+  font_size   REAL                      -- cỡ chữ gốc (point)
 );
 CREATE INDEX IF NOT EXISTS idx_blocks_page   ON blocks(book_id, page, idx);
 CREATE INDEX IF NOT EXISTS idx_blocks_status ON blocks(book_id, status);
@@ -71,7 +72,28 @@ async def init_db() -> None:
             await db.execute("ALTER TABLE blocks ADD COLUMN group_id INTEGER")
         if "part_no" not in columns:
             await db.execute("ALTER TABLE blocks ADD COLUMN part_no INTEGER NOT NULL DEFAULT 0")
+        if "font_size" not in columns:
+            await db.execute("ALTER TABLE blocks ADD COLUMN font_size REAL")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_group ON blocks(book_id, group_id, part_no)")
+
+        # Backfill font_size cho các block cũ nếu thiếu
+        cur = await db.execute("SELECT COUNT(*) AS c FROM blocks WHERE font_size IS NULL")
+        if (await cur.fetchone())["c"] > 0:
+            cur = await db.execute("SELECT id, file_hash FROM books")
+            books = await cur.fetchall()
+            from app.services.pdf_parser import parse_pdf
+            for b in books:
+                pdf_path = settings.pdf_dir / f"{b['file_hash']}.pdf"
+                if pdf_path.exists():
+                    try:
+                        doc = parse_pdf(pdf_path)
+                        for pb in doc.blocks:
+                            await db.execute(
+                                "UPDATE blocks SET font_size = ? WHERE book_id = ? AND page = ? AND idx = ? AND font_size IS NULL",
+                                (pb.font_size, b["id"], pb.page, pb.idx),
+                            )
+                    except Exception:
+                        pass
 
         await db.commit()
 
@@ -105,6 +127,7 @@ def block_to_dict(r: aiosqlite.Row) -> dict:
     gid = r["group_id"] if "group_id" in row_keys and r["group_id"] is not None else r["id"]
     part_no = r["part_no"] if "part_no" in row_keys else 0
     group_size = r["group_size"] if "group_size" in row_keys else 1
+    font_size = r["font_size"] if "font_size" in row_keys and r["font_size"] is not None else None
     return {
         "id": r["id"],
         "page": r["page"],
@@ -117,4 +140,5 @@ def block_to_dict(r: aiosqlite.Row) -> dict:
         "group_id": gid,
         "part_no": part_no,
         "group_size": group_size,
+        "font_size": font_size,
     }

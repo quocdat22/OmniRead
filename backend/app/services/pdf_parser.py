@@ -46,6 +46,7 @@ class ParsedBlock:
     bbox: tuple[float, float, float, float]
     group_key: int = 0  # Mã nhóm tạm thời khi parse
     part_no: int = 0    # Thứ tự mảnh trong nhóm (0, 1, ...)
+    font_size: float = 0.0  # Cỡ chữ (point)
 
 
 @dataclass
@@ -653,7 +654,13 @@ def parse_pdf(path: Path) -> ParsedDocument:
                     round(min(l.x0 for l in group), 2), round(min(l.y0 for l in group), 2),
                     round(max(l.x1 for l in group), 2), round(max(l.y1 for l in group), 2),
                 )
-                block = ParsedBlock(pg.number, idx, text, bbox)
+                total_chars = sum(len(s.text.strip()) for ln in group for s in ln.spans)
+                if total_chars > 0:
+                    font_sz = sum(s.size * len(s.text.strip()) for ln in group for s in ln.spans) / total_chars
+                else:
+                    font_sz = sum(l.size for l in group) / max(1, len(group))
+                font_sz = round(font_sz, 1)
+                block = ParsedBlock(pg.number, idx, text, bbox, font_size=font_sz)
                 cand_idx = len(blocks)
                 blocks.append(block)
 

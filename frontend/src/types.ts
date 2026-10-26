@@ -27,6 +27,7 @@ export interface Block {
   group_id: number;
   part_no: number;
   group_size: number;
+  font_size?: number | null;
 }
 
 export interface PageData {

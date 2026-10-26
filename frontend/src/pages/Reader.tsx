@@ -324,6 +324,7 @@ export default function Reader({ bookId }: { bookId: number }) {
         <TranslationPopup
           block={selectedBlock}
           reference={selected.el}
+          pageWidth={pages[selected.page]?.page.width}
           onClose={closePopup}
         />
       )}

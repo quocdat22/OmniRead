@@ -62,6 +62,8 @@ def main() -> None:
     assert not any(t.strip() == "1" for t in texts), "số trang chưa bị loại"
     assert any("example of a hyphenated word" in t for t in texts), "gạch nối chưa được nối"
     assert len(texts) == 4, f"kỳ vọng 4 block/trang (heading + 3 đoạn), thực tế {len(texts)}: {texts}"
+    assert any(b.font_size == 18.0 for b in parsed.blocks), "ParsedBlock font_size 18.0 not found"
+    assert any(b.font_size == 11.0 for b in parsed.blocks), "ParsedBlock font_size 11.0 not found"
 
     # --- 2) API end-to-end với translator giả
     async def fake_translate(text: str) -> str:
@@ -92,6 +94,8 @@ def main() -> None:
         r = c.get(f"/api/books/{book_id}/blocks", params={"page": 2}).json()
         assert r["page"]["width"] > 0 and len(r["blocks"]) == 4
         assert all(b["translation"].startswith("[VI] ") for b in r["blocks"])
+        assert any(b.get("font_size") == 18.0 for b in r["blocks"]), "Heading font_size 18.0 not found"
+        assert any(b.get("font_size") == 11.0 for b in r["blocks"]), "Paragraph font_size 11.0 not found"
 
         assert c.get(f"/api/books/{book_id}/file").headers["content-type"] == "application/pdf"
         assert c.get(f"/api/books/{book_id}/blocks", params={"page": 99}).status_code == 404
