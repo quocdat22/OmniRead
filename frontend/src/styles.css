@@ -422,12 +422,31 @@ body {
   cursor: not-allowed;
   opacity: 0.6;
 }
+.default-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.12);
+  color: var(--highlight-color, var(--accent));
+}
+.setting-slider-row.disabled .default-tag {
+  background: rgba(107, 114, 128, 0.15);
+  color: var(--muted);
+}
 .slider-ticks {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
   color: var(--muted);
   user-select: none;
+}
+.slider-ticks .tick-default {
+  color: var(--highlight-color, var(--accent));
+  font-weight: 600;
+}
+.setting-slider-row.disabled .slider-ticks .tick-default {
+  color: var(--muted);
 }
 
 /* ---------------- Preview Area ---------------- */

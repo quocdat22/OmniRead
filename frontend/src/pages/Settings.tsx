@@ -1,6 +1,11 @@
 import type React from "react";
 import { Link } from "react-router-dom";
-import { COLOR_PRESETS, useHighlightStyle } from "../hooks/useHighlightStyle";
+import {
+  COLOR_PRESETS,
+  DEFAULT_HIGHLIGHT_PADDING,
+  DEFAULT_POPUP_FONT_SIZE,
+  useHighlightStyle,
+} from "../hooks/useHighlightStyle";
 import type { HighlightStyle } from "../types";
 
 interface OptionItem {
@@ -112,7 +117,12 @@ export default function Settings() {
           <div className={`setting-slider-row${!isPaddingEnabled ? " disabled" : ""}`}>
             <div className="slider-label">
               <span>Khoảng đệm (Padding):</span>
-              <strong>{highlightPadding}px</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {highlightPadding === DEFAULT_HIGHLIGHT_PADDING && (
+                  <span className="default-tag">Mặc định</span>
+                )}
+                <strong>{highlightPadding}px</strong>
+              </div>
             </div>
             <div className="slider-control">
               <input
@@ -128,7 +138,7 @@ export default function Settings() {
               />
               <div className="slider-ticks">
                 <span>0px</span>
-                <span>4px</span>
+                <span className="tick-default">4px (Mặc định)</span>
                 <span>8px</span>
                 <span>12px</span>
                 <span>16px</span>
@@ -140,7 +150,12 @@ export default function Settings() {
           <div className="setting-slider-row">
             <div className="slider-label">
               <span>Cỡ chữ nội dung popup:</span>
-              <strong>{popupFontSize}px</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {popupFontSize === DEFAULT_POPUP_FONT_SIZE && (
+                  <span className="default-tag">Mặc định</span>
+                )}
+                <strong>{popupFontSize}px</strong>
+              </div>
             </div>
             <div className="slider-control">
               <input
@@ -155,7 +170,7 @@ export default function Settings() {
               />
               <div className="slider-ticks">
                 <span>12px</span>
-                <span>15px</span>
+                <span className="tick-default">15px (Mặc định)</span>
                 <span>18px</span>
                 <span>21px</span>
                 <span>24px</span>
