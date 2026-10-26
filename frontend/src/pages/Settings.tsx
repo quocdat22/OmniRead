@@ -30,9 +30,11 @@ export default function Settings() {
     color: highlightColor,
     setColor: setHighlightColor,
     colorPreset,
+    fontSize: popupFontSize,
+    setFontSize: setPopupFontSize,
   } = useHighlightStyle();
 
-  const showPaddingSlider = highlightStyle === "background" || highlightStyle === "border";
+  const isPaddingEnabled = highlightStyle === "background" || highlightStyle === "border";
 
   return (
     <div className="settings">
@@ -107,33 +109,59 @@ export default function Settings() {
           </div>
 
           {/* ---------------- Slider thiết lập Padding ---------------- */}
-          {showPaddingSlider && (
-            <div className="setting-slider-row">
-              <div className="slider-label">
-                <span>Khoảng đệm (Padding):</span>
-                <strong>{highlightPadding}px</strong>
-              </div>
-              <div className="slider-control">
-                <input
-                  type="range"
-                  min={0}
-                  max={16}
-                  step={1}
-                  value={highlightPadding}
-                  onChange={(e) => setHighlightPadding(Number(e.target.value))}
-                  className="padding-slider"
-                  aria-label="Khoảng đệm padding"
-                />
-                <div className="slider-ticks">
-                  <span>0px</span>
-                  <span>4px</span>
-                  <span>8px</span>
-                  <span>12px</span>
-                  <span>16px</span>
-                </div>
+          <div className={`setting-slider-row${!isPaddingEnabled ? " disabled" : ""}`}>
+            <div className="slider-label">
+              <span>Khoảng đệm (Padding):</span>
+              <strong>{highlightPadding}px</strong>
+            </div>
+            <div className="slider-control">
+              <input
+                type="range"
+                min={0}
+                max={16}
+                step={1}
+                value={highlightPadding}
+                disabled={!isPaddingEnabled}
+                onChange={(e) => setHighlightPadding(Number(e.target.value))}
+                className="padding-slider"
+                aria-label="Khoảng đệm padding"
+              />
+              <div className="slider-ticks">
+                <span>0px</span>
+                <span>4px</span>
+                <span>8px</span>
+                <span>12px</span>
+                <span>16px</span>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* ---------------- Slider thiết lập Font Size của Popup ---------------- */}
+          <div className="setting-slider-row">
+            <div className="slider-label">
+              <span>Cỡ chữ nội dung popup:</span>
+              <strong>{popupFontSize}px</strong>
+            </div>
+            <div className="slider-control">
+              <input
+                type="range"
+                min={12}
+                max={24}
+                step={1}
+                value={popupFontSize}
+                onChange={(e) => setPopupFontSize(Number(e.target.value))}
+                className="padding-slider"
+                aria-label="Cỡ chữ nội dung popup"
+              />
+              <div className="slider-ticks">
+                <span>12px</span>
+                <span>15px</span>
+                <span>18px</span>
+                <span>21px</span>
+                <span>24px</span>
+              </div>
+            </div>
+          </div>
 
           {/* ---------------- Live Preview Section ---------------- */}
           <div className="preview-box">
@@ -158,7 +186,10 @@ export default function Settings() {
 
               <div className="preview-popup-wrapper">
                 <div className="preview-popup">
-                  <div className="preview-popup-body">
+                  <div
+                    className="preview-popup-body"
+                    style={{ fontSize: `${popupFontSize}px` }}
+                  >
                     <p style={{ margin: 0 }}>{SAMPLE_BLOCK.translation}</p>
                   </div>
                 </div>

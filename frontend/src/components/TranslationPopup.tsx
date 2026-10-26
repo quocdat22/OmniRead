@@ -2,6 +2,7 @@ import {
   autoUpdate, flip, FloatingPortal, offset, shift, size,
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
+import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block } from "../types";
 import FormattedText from "./FormattedText";
 
@@ -15,6 +16,8 @@ interface Props {
 export default function TranslationPopup({
   block, reference, pageWidth, onClose,
 }: Props) {
+  const { fontSize: popupFontSize } = useHighlightStyle();
+
   const { refs, floatingStyles, context } = useFloating({
     open: true,
     onOpenChange: (open) => !open && onClose(),
@@ -49,11 +52,13 @@ export default function TranslationPopup({
         ? reference.parentElement.clientWidth / pageWidth
         : 1;
 
-  // Cỡ chữ theo CSS px = block.font_size (point) * scale.
-  // Đặt sàn tối thiểu là 12px để đảm bảo vẫn đọc được ngay cả khi người dùng zoom nhỏ.
+  // Cỡ chữ theo CSS px:
+  // Nếu block có font_size, tính theo tỷ lệ block.font_size * scale kết hợp với tỷ lệ điều chỉnh font size từ setting (mặc định 15px).
+  // Nếu không có, sử dụng trực tiếp cỡ chữ popupFontSize đã chọn trong setting.
+  const baseSize = popupFontSize ?? 15;
   const computedFontSize = block.font_size
-    ? Math.max(12, Math.round(block.font_size * scale * 10) / 10)
-    : 15;
+    ? Math.max(12, Math.round(block.font_size * scale * (baseSize / 15) * 10) / 10)
+    : baseSize;
 
   return (
     <FloatingPortal>

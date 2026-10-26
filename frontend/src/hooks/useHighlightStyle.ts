@@ -4,10 +4,12 @@ import type { HighlightColor, HighlightStyle } from "../types";
 export const HIGHLIGHT_STORAGE_KEY = "omni_highlight_style";
 export const HIGHLIGHT_PADDING_KEY = "omni_highlight_padding";
 export const HIGHLIGHT_COLOR_KEY = "omni_highlight_color";
+export const HIGHLIGHT_FONT_SIZE_KEY = "omni_popup_font_size";
 
 export const DEFAULT_HIGHLIGHT_STYLE: HighlightStyle = "bar";
 export const DEFAULT_HIGHLIGHT_PADDING = 4;
 export const DEFAULT_HIGHLIGHT_COLOR: HighlightColor = "blue";
+export const DEFAULT_POPUP_FONT_SIZE = 15;
 
 export interface ColorPreset {
   id: HighlightColor;
@@ -68,10 +70,26 @@ export function getSavedHighlightColor(): HighlightColor {
   return DEFAULT_HIGHLIGHT_COLOR;
 }
 
+export function getSavedPopupFontSize(): number {
+  try {
+    const val = localStorage.getItem(HIGHLIGHT_FONT_SIZE_KEY);
+    if (val !== null) {
+      const num = Number(val);
+      if (!Number.isNaN(num) && num >= 10 && num <= 32) {
+        return num;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_POPUP_FONT_SIZE;
+}
+
 export function useHighlightStyle() {
   const [style, setStyleState] = useState<HighlightStyle>(getSavedHighlightStyle);
   const [padding, setPaddingState] = useState<number>(getSavedHighlightPadding);
   const [color, setColorState] = useState<HighlightColor>(getSavedHighlightColor);
+  const [fontSize, setFontSizeState] = useState<number>(getSavedPopupFontSize);
 
   const setStyle = (newStyle: HighlightStyle) => {
     setStyleState(newStyle);
@@ -103,6 +121,16 @@ export function useHighlightStyle() {
     }
   };
 
+  const setFontSize = (newSize: number) => {
+    setFontSizeState(newSize);
+    try {
+      localStorage.setItem(HIGHLIGHT_FONT_SIZE_KEY, String(newSize));
+      window.dispatchEvent(new Event("omni-highlight-style-changed"));
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === HIGHLIGHT_STORAGE_KEY) {
@@ -111,12 +139,15 @@ export function useHighlightStyle() {
         setPaddingState(getSavedHighlightPadding());
       } else if (e.key === HIGHLIGHT_COLOR_KEY) {
         setColorState(getSavedHighlightColor());
+      } else if (e.key === HIGHLIGHT_FONT_SIZE_KEY) {
+        setFontSizeState(getSavedPopupFontSize());
       }
     };
     const onCustom = () => {
       setStyleState(getSavedHighlightStyle());
       setPaddingState(getSavedHighlightPadding());
       setColorState(getSavedHighlightColor());
+      setFontSizeState(getSavedPopupFontSize());
     };
 
     window.addEventListener("storage", onStorage);
@@ -129,5 +160,17 @@ export function useHighlightStyle() {
 
   const colorPreset = getColorPreset(color);
 
-  return { style, setStyle, padding, setPadding, color, setColor, colorPreset };
+  return {
+    style,
+    setStyle,
+    padding,
+    setPadding,
+    color,
+    setColor,
+    colorPreset,
+    fontSize,
+    setFontSize,
+    popupFontSize: fontSize,
+    setPopupFontSize: setFontSize,
+  };
 }
