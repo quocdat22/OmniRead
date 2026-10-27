@@ -1,5 +1,6 @@
-"""Điều phối pipeline: parse PDF -> lưu block -> dịch toàn bộ bằng N worker song song.
+"""Điều phối pipeline: parse PDF -> lưu block -> dịch toàn bộ bằng N worker song song theo từng trang.
 
+- Batching theo trang: Các block trong cùng một trang được gửi chung 1 request để bảo toàn ngữ cảnh liên kết.
 - Resume được: block 'pending'/'translating' sẽ được dịch tiếp sau khi khởi động lại.
 - Ưu tiên dịch các trang gần trang người dùng đang đọc (set_focus).
 - Lỗi nghiêm trọng (sai key, hết tiền) dừng cả job; lỗi lẻ chỉ đánh dấu block 'error'.
@@ -18,17 +19,17 @@ from app.services.translator import FatalTranslationError, Translator
 
 log = logging.getLogger(__name__)
 
-# Nhận 1 head block 'pending' (ưu tiên gần trang focus) và đánh dấu 'translating' trong 1 câu lệnh
-# nguyên tử -> nhiều worker không bao giờ lấy trùng. Cần SQLite >= 3.35 (RETURNING).
-_CLAIM_SQL = """
+# Nhận tất cả head block 'pending' của 1 trang (ưu tiên gần trang focus) và đánh dấu 'translating'
+# trong 1 câu lệnh nguyên tử -> nhiều worker không bao giờ lấy trùng. Cần SQLite >= 3.35 (RETURNING).
+_CLAIM_PAGE_SQL = """
 UPDATE blocks SET status = 'translating'
-WHERE id = (
-    SELECT id FROM blocks
+WHERE book_id = ? AND page = (
+    SELECT page FROM blocks
     WHERE book_id = ? AND status = 'pending' AND (group_id = id OR group_id IS NULL)
-    ORDER BY ABS(page - ?), page, idx
+    ORDER BY ABS(page - ?), page
     LIMIT 1
-)
-RETURNING id, group_id
+) AND status = 'pending' AND (group_id = id OR group_id IS NULL)
+RETURNING id, page, idx, group_id
 """
 
 
@@ -197,51 +198,90 @@ class JobManager:
     async def _worker(self, book_id: int) -> None:
         async with connect() as db:
             while book_id not in self._fatal:
-                cur = await db.execute(_CLAIM_SQL, (book_id, self._focus.get(book_id, 1)))
+                cur = await db.execute(_CLAIM_PAGE_SQL, (book_id, book_id, self._focus.get(book_id, 1)))
                 rows = await cur.fetchall()
                 await db.commit()
                 if not rows:
                     return
-                head_id = rows[0]["id"]
-                gid = rows[0]["group_id"] or head_id
 
-                # Đánh dấu toàn bộ mảnh trong nhóm sang 'translating'
+                page = rows[0]["page"]
+                group_ids = list({r["group_id"] or r["id"] for r in rows})
+
+                # Đánh dấu toàn bộ mảnh con trong nhóm sang 'translating'
+                placeholders = ",".join("?" * len(group_ids))
                 await db.execute(
-                    "UPDATE blocks SET status = 'translating' WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                    (book_id, gid, gid),
+                    f"UPDATE blocks SET status = 'translating' WHERE book_id = ? AND group_id IN ({placeholders})",
+                    (book_id, *group_ids),
                 )
                 await db.commit()
 
-                # Lấy toàn bộ text của nhóm theo thứ tự part_no
-                cur = await db.execute(
-                    "SELECT text FROM blocks WHERE book_id = ? AND (group_id = ? OR id = ?) ORDER BY part_no",
-                    (book_id, gid, gid),
-                )
-                text_rows = await cur.fetchall()
-                combined_text = _join_group_texts([r["text"] for r in text_rows])
-
-                try:
-                    translation = await self.translator.translate(combined_text)
-                    await db.execute(
-                        "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
-                        (translation, head_id),
-                    )
-                    await db.execute(
-                        "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                # Lấy toàn bộ text của từng block/nhóm theo thứ tự đọc trong trang (idx)
+                sorted_rows = sorted(rows, key=lambda r: r["idx"])
+                page_items: list[tuple[int, str]] = []
+                for r in sorted_rows:
+                    head_id = r["id"]
+                    gid = r["group_id"] or head_id
+                    cur = await db.execute(
+                        "SELECT text FROM blocks WHERE book_id = ? AND (group_id = ? OR id = ?) ORDER BY part_no",
                         (book_id, gid, gid),
                     )
+                    text_rows = await cur.fetchall()
+                    combined_text = _join_group_texts([tr["text"] for tr in text_rows])
+                    page_items.append((head_id, combined_text))
+
+                try:
+                    translations = await self.translator.translate_batch(page_items)
                 except FatalTranslationError as e:
                     self._fatal[book_id] = str(e)
                     await db.execute(
-                        "UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                        (book_id, gid, gid),
+                        f"UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id IN ({placeholders}) OR id IN ({placeholders}))",
+                        (book_id, *group_ids, *group_ids),
                     )
+                    await db.commit()
+                    return
                 except Exception as e:  # noqa: BLE001
-                    log.warning("Group %s lỗi: %s", gid, e)
-                    await db.execute(
-                        "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                        (str(e)[:500], book_id, gid, gid),
-                    )
+                    log.warning("Trang %s (book %s) dịch batch lỗi: %s, fallback dịch từng block", page, book_id, e)
+                    translations = {}
+
+                # Lưu kết quả và fallback dịch lẻ nếu thiếu block
+                for head_id, combined_text in page_items:
+                    gid = next((r["group_id"] for r in rows if r["id"] == head_id), head_id) or head_id
+                    tr_text = translations.get(head_id)
+                    if tr_text:
+                        await db.execute(
+                            "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
+                            (tr_text, head_id),
+                        )
+                        await db.execute(
+                            "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                            (book_id, gid, gid),
+                        )
+                    else:
+                        # Fallback dịch riêng block này nếu không có trong kết quả batch
+                        try:
+                            tr_text = await self.translator.translate(combined_text)
+                            await db.execute(
+                                "UPDATE blocks SET translation = ?, status = 'done', error_msg = NULL WHERE id = ?",
+                                (tr_text, head_id),
+                            )
+                            await db.execute(
+                                "UPDATE blocks SET status = 'done', error_msg = NULL WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                                (book_id, gid, gid),
+                            )
+                        except FatalTranslationError as e:
+                            self._fatal[book_id] = str(e)
+                            await db.execute(
+                                "UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                                (book_id, gid, gid),
+                            )
+                            await db.commit()
+                            return
+                        except Exception as e:  # noqa: BLE001
+                            log.warning("Block %s lỗi: %s", head_id, e)
+                            await db.execute(
+                                "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
+                                (str(e)[:500], book_id, gid, gid),
+                            )
                 await db.commit()
 
 
