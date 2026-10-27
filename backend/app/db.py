@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS blocks (
 );
 CREATE INDEX IF NOT EXISTS idx_blocks_page   ON blocks(book_id, page, idx);
 CREATE INDEX IF NOT EXISTS idx_blocks_status ON blocks(book_id, status);
+CREATE INDEX IF NOT EXISTS idx_blocks_book_page_status ON blocks(book_id, page, status);
 """
 
 
@@ -75,6 +76,7 @@ async def init_db() -> None:
         if "font_size" not in columns:
             await db.execute("ALTER TABLE blocks ADD COLUMN font_size REAL")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_group ON blocks(book_id, group_id, part_no)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_book_page_status ON blocks(book_id, page, status)")
 
         # Backfill font_size cho các block cũ nếu thiếu
         cur = await db.execute("SELECT COUNT(*) AS c FROM blocks WHERE font_size IS NULL")
@@ -102,7 +104,22 @@ _BOOK_SQL = """
 SELECT b.id, b.title, b.filename, b.page_count, b.status, b.error_msg, b.created_at,
        COUNT(k.id)                          AS total,
        COALESCE(SUM(k.status = 'done'), 0)  AS done,
-       COALESCE(SUM(k.status = 'error'), 0) AS errors
+       COALESCE(SUM(k.status = 'error'), 0) AS errors,
+       CASE 
+         WHEN b.status = 'done' THEN b.page_count
+         ELSE COALESCE((
+           SELECT COUNT(DISTINCT p.page)
+           FROM blocks p
+           WHERE p.book_id = b.id
+             AND NOT EXISTS (
+               SELECT 1 FROM blocks sub
+               WHERE sub.book_id = p.book_id
+                 AND sub.page = p.page
+                 AND sub.status != 'done'
+             )
+         ), 0)
+       END AS pages_done,
+       b.page_count AS pages_total
 FROM books b LEFT JOIN blocks k ON k.book_id = b.id
 """
 

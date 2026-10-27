@@ -15,6 +15,8 @@ export interface Book {
   total: number;
   done: number;
   errors: number;
+  pages_done?: number;
+  pages_total?: number;
 }
 
 export interface Block {
@@ -44,4 +46,6 @@ export interface Progress {
   done: number;
   errors: number;
   error_msg: string | null;
+  pages_done?: number;
+  pages_total?: number;
 }

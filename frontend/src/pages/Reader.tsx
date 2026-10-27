@@ -152,7 +152,7 @@ export default function Reader({ bookId }: { bookId: number }) {
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [progress?.done, progress?.errors, progress?.status, loadPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [progress?.done, progress?.pages_done, progress?.errors, progress?.status, loadPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------- chọn block / popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
@@ -263,7 +263,11 @@ export default function Reader({ bookId }: { bookId: number }) {
     () => Array.from({ length: pdf?.numPages ?? 0 }, (_, i) => i + 1),
     [pdf],
   );
-  const pct = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const pagesTotal = progress?.pages_total || book?.page_count || progress?.total || 0;
+  const pagesDone = progress
+    ? (progress.pages_done ?? (progress.status === "done" ? pagesTotal : progress.done))
+    : 0;
+  const pct = pagesTotal ? Math.round((pagesDone / pagesTotal) * 100) : 0;
   const canRetry = !!progress && (progress.errors > 0 || progress.status === "error");
 
   return (
@@ -279,7 +283,7 @@ export default function Reader({ bookId }: { bookId: number }) {
             <span className="err">{progress.error_msg}</span>
           ) : (
             <>
-              <span>{progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {progress.done}/{progress.total}</span>
+              <span>{progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {pagesDone}/{pagesTotal}</span>
               <span className="bar"><i style={{ width: `${pct}%` }} /></span>
               {progress.errors > 0 && <span className="err">{progress.errors} lỗi</span>}
             </>

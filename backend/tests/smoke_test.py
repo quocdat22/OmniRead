@@ -90,6 +90,7 @@ def main() -> None:
             time.sleep(0.2)
         print("Book:", book)
         assert book["status"] == "done" and book["done"] == book["total"] == 16
+        assert book["pages_done"] == book["pages_total"] == 4
 
         r = c.get(f"/api/books/{book_id}/blocks", params={"page": 2}).json()
         assert r["page"]["width"] > 0 and len(r["blocks"]) == 4

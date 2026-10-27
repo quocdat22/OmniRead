@@ -4,10 +4,12 @@ import { api, ApiError } from "../api";
 import type { Book } from "../types";
 
 function statusText(b: Book): string {
+  const totalPages = b.pages_total ?? b.page_count;
+  const donePages = b.pages_done ?? (b.status === "done" ? totalPages : 0);
   switch (b.status) {
     case "parsing": return "Đang phân tích PDF…";
-    case "translating": return `Đang dịch ${b.done}/${b.total}`;
-    case "done": return `Đã dịch xong (${b.total} đoạn)`;
+    case "translating": return `Đang dịch ${donePages}/${totalPages}`;
+    case "done": return `Đã dịch xong (${totalPages} trang)`;
     case "partial": return `Xong, ${b.errors} đoạn lỗi`;
     case "error": return `Lỗi: ${b.error_msg ?? "không rõ"}`;
   }
@@ -132,7 +134,13 @@ export default function Library() {
 
       <div className="cards">
         {books.map((b) => {
-          const pct = b.total ? Math.round((b.done / b.total) * 100) : 0;
+          const totalPages = b.pages_total ?? b.page_count;
+          const donePages = b.pages_done ?? (b.status === "done" ? totalPages : 0);
+          const pct = totalPages
+            ? Math.round((donePages / totalPages) * 100)
+            : b.total
+            ? Math.round((b.done / b.total) * 100)
+            : 0;
           return (
             <div className="card" key={b.id}>
               <div className="card-title" title={b.filename}>{b.title}</div>

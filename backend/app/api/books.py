@@ -144,7 +144,10 @@ async def progress(book_id: int, request: Request):
             if book is None:
                 yield "event: gone\ndata: {}\n\n"
                 return
-            payload = {k: book[k] for k in ("status", "total", "done", "errors", "error_msg")}
+            payload = {
+                k: book[k]
+                for k in ("status", "total", "done", "errors", "error_msg", "pages_done", "pages_total")
+            }
             if payload != last:
                 yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
                 last = payload
