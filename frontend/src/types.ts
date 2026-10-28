@@ -19,6 +19,12 @@ export interface Book {
   pages_total?: number;
 }
 
+export interface SentenceInfo {
+  text: string;
+  /** Danh sách rects [x0, y0, x1, y1] theo PDF point cho câu (hỗ trợ câu trải dài nhiều dòng). */
+  rects: [number, number, number, number][];
+}
+
 export interface Block {
   id: number;
   page: number;
@@ -33,6 +39,7 @@ export interface Block {
   part_no: number;
   group_size: number;
   font_size?: number | null;
+  sentences?: SentenceInfo[];
 }
 
 export interface PageData {

@@ -2,8 +2,10 @@ import {
   autoUpdate, flip, FloatingPortal, offset, shift, size,
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block } from "../types";
+import { splitSentencesHtml } from "../utils/sentenceSplitter";
 import FormattedText from "./FormattedText";
 
 interface Props {
@@ -11,12 +13,17 @@ interface Props {
   reference: HTMLElement;
   pageWidth?: number;
   onClose: () => void;
+  onHoverSentence?: (rects: [number, number, number, number][] | null) => void;
 }
 
 export default function TranslationPopup({
-  block, reference, pageWidth, onClose,
+  block, reference, pageWidth, onClose, onHoverSentence,
 }: Props) {
   const { fontSize: popupFontSize } = useHighlightStyle();
+  const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
+
+  const onHoverSentenceRef = useRef(onHoverSentence);
+  onHoverSentenceRef.current = onHoverSentence;
 
   const { refs, floatingStyles, context } = useFloating({
     open: true,
@@ -43,6 +50,58 @@ export default function TranslationPopup({
 
   const ready = block.status === "done" && !!block.translation;
 
+  // Tách các câu trong bản dịch
+  const sentences = useMemo(() => {
+    if (!ready || !block.translation) return [];
+    return splitSentencesHtml(block.translation);
+  }, [ready, block.translation]);
+
+  // Danh sách câu gốc từ backend
+  const origSentences = useMemo(() => {
+    if (block.sentences && block.sentences.length > 0) {
+      return block.sentences;
+    }
+    return [{ text: block.text, rects: [block.bbox] }];
+  }, [block.sentences, block.text, block.bbox]);
+
+  // Reset highlight khi block thay đổi hoặc unmount
+  useEffect(() => {
+    setActiveSentenceIdx(null);
+    onHoverSentenceRef.current?.(null);
+    return () => {
+      onHoverSentenceRef.current?.(null);
+    };
+  }, [block.id]);
+
+  const handleSentenceMouseEnter = (sIdx: number) => {
+    setActiveSentenceIdx(sIdx);
+    if (!origSentences.length) {
+      onHoverSentenceRef.current?.([block.bbox]);
+      return;
+    }
+
+    // Ánh xạ câu dịch sIdx -> câu gốc origIdx
+    let origIdx = sIdx;
+    if (sentences.length !== origSentences.length) {
+      origIdx = Math.min(
+        origSentences.length - 1,
+        Math.max(
+          0,
+          Math.round(
+            (sIdx / Math.max(1, sentences.length - 1)) * (origSentences.length - 1)
+          )
+        )
+      );
+    }
+    const target = origSentences[origIdx];
+    onHoverSentenceRef.current?.(target?.rects || [block.bbox]);
+  };
+
+  const handleSentenceMouseLeave = () => {
+    setActiveSentenceIdx(null);
+    onHoverSentenceRef.current?.(null);
+  };
+
   // Tính scale factor dựa theo tỷ lệ giữa kích thước hiển thị trên màn hình và PDF point gốc
   const pageEl = reference.closest(".pdf-page") as HTMLElement | null;
   const scale =
@@ -53,8 +112,6 @@ export default function TranslationPopup({
         : 1;
 
   // Cỡ chữ theo CSS px:
-  // Nếu block có font_size, tính theo tỷ lệ block.font_size * scale kết hợp với tỷ lệ điều chỉnh font size từ setting (mặc định 15px).
-  // Nếu không có, sử dụng trực tiếp cỡ chữ popupFontSize đã chọn trong setting.
   const baseSize = popupFontSize ?? 15;
   const computedFontSize = block.font_size
     ? Math.max(12, Math.round(block.font_size * scale * (baseSize / 15) * 10) / 10)
@@ -70,7 +127,18 @@ export default function TranslationPopup({
             </div>
           )}
           {ready ? (
-            <p><FormattedText text={block.translation!} /></p>
+            <p>
+              {sentences.map((sentText, idx) => (
+                <span
+                  key={idx}
+                  className={`popup-sentence ${activeSentenceIdx === idx ? "active" : ""}`}
+                  onMouseEnter={() => handleSentenceMouseEnter(idx)}
+                  onMouseLeave={handleSentenceMouseLeave}
+                >
+                  <FormattedText text={sentText} />{" "}
+                </span>
+              ))}
+            </p>
           ) : block.status === "error" ? (
             <p className="err">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
           ) : (

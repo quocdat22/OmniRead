@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS blocks (
   error_msg   TEXT,
   group_id    INTEGER,                  -- id của block đầu nhóm; NULL/tự trỏ nếu đứng một mình
   part_no     INTEGER NOT NULL DEFAULT 0, -- thứ tự mảnh trong nhóm
-  font_size   REAL                      -- cỡ chữ gốc (point)
+  font_size   REAL,                     -- cỡ chữ gốc (point)
+  sentences   TEXT                      -- JSON array: [{"text": str, "rects": [[x0, y0, x1, y1], ...]}]
 );
 CREATE INDEX IF NOT EXISTS idx_blocks_page   ON blocks(book_id, page, idx);
 CREATE INDEX IF NOT EXISTS idx_blocks_status ON blocks(book_id, status);
@@ -75,8 +76,30 @@ async def init_db() -> None:
             await db.execute("ALTER TABLE blocks ADD COLUMN part_no INTEGER NOT NULL DEFAULT 0")
         if "font_size" not in columns:
             await db.execute("ALTER TABLE blocks ADD COLUMN font_size REAL")
+        if "sentences" not in columns:
+            await db.execute("ALTER TABLE blocks ADD COLUMN sentences TEXT")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_group ON blocks(book_id, group_id, part_no)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_blocks_book_page_status ON blocks(book_id, page, status)")
+
+        # Backfill sentences cho các block cũ nếu thiếu
+        cur = await db.execute("SELECT COUNT(*) AS c FROM blocks WHERE sentences IS NULL")
+        if (await cur.fetchone())["c"] > 0:
+            cur = await db.execute("SELECT id, file_hash FROM books")
+            books = await cur.fetchall()
+            from app.services.pdf_parser import parse_pdf
+            for b in books:
+                pdf_path = settings.pdf_dir / f"{b['file_hash']}.pdf"
+                if pdf_path.exists():
+                    try:
+                        doc = parse_pdf(pdf_path)
+                        for pb in doc.blocks:
+                            if pb.sentences:
+                                await db.execute(
+                                    "UPDATE blocks SET sentences = ? WHERE book_id = ? AND page = ? AND idx = ? AND sentences IS NULL",
+                                    (json.dumps(pb.sentences), b["id"], pb.page, pb.idx),
+                                )
+                    except Exception:
+                        pass
 
         # Backfill font_size cho các block cũ nếu thiếu
         cur = await db.execute("SELECT COUNT(*) AS c FROM blocks WHERE font_size IS NULL")
@@ -145,12 +168,21 @@ def block_to_dict(r: aiosqlite.Row) -> dict:
     part_no = r["part_no"] if "part_no" in row_keys else 0
     group_size = r["group_size"] if "group_size" in row_keys else 1
     font_size = r["font_size"] if "font_size" in row_keys and r["font_size"] is not None else None
+    bbox_val = json.loads(r["bbox"])
+    sentences = None
+    if "sentences" in row_keys and r["sentences"]:
+        try:
+            sentences = json.loads(r["sentences"])
+        except Exception:
+            pass
+    if not sentences:
+        sentences = [{"text": r["text"], "rects": [bbox_val]}]
     return {
         "id": r["id"],
         "page": r["page"],
         "idx": r["idx"],
         "text": r["text"],
-        "bbox": json.loads(r["bbox"]),
+        "bbox": bbox_val,
         "translation": r["translation"],
         "status": r["status"],
         "error_msg": r["error_msg"],
@@ -158,4 +190,5 @@ def block_to_dict(r: aiosqlite.Row) -> dict:
         "part_no": part_no,
         "group_size": group_size,
         "font_size": font_size,
+        "sentences": sentences,
     }

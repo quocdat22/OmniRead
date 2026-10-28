@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pymupdf
@@ -47,6 +47,7 @@ class ParsedBlock:
     group_key: int = 0  # Mã nhóm tạm thời khi parse
     part_no: int = 0    # Thứ tự mảnh trong nhóm (0, 1, ...)
     font_size: float = 0.0  # Cỡ chữ (point)
+    sentences: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -392,6 +393,73 @@ def _join_lines(lines: list[_Line]) -> str:
             text += " " + t
     return text
 
+_ABBREVIATIONS = {
+    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "vs", "e.g", "eg", "i.e", "ie",
+    "etc", "fig", "al", "inc", "ltd", "corp", "no", "vol", "approx",
+}
+
+
+def _split_sentences(text: str) -> list[str]:
+    splits = re.split(r'([.!?…]+[\x22\x27)\]]*\s+)', text)
+    sentences = []
+    current = ""
+    for i in range(0, len(splits), 2):
+        part = splits[i]
+        delim = splits[i + 1] if i + 1 < len(splits) else ""
+        current += part + delim
+        clean = re.sub(r"<[^>]+>", "", current).strip()
+        words = clean.split()
+        if words:
+            clean_word = re.sub(r'^[^\w]+|[^\w]+$', '', words[-1].lower())
+            if clean_word in _ABBREVIATIONS or clean_word.replace('.', '') in _ABBREVIATIONS:
+                continue
+            if len(clean_word) == 1 and clean_word.isalpha():
+                continue
+            if i + 2 < len(splits) and splits[i + 2][:1].islower() and not re.search(r"[!?]", delim):
+                continue
+        if current.strip():
+            sentences.append(current.strip())
+            current = ""
+    if current.strip():
+        sentences.append(current.strip())
+    return sentences or [text.strip()]
+
+
+def _extract_block_sentences(
+    page: pymupdf.Page, text: str, bbox: tuple[float, float, float, float]
+) -> list[dict]:
+    s_list = _split_sentences(text)
+    clip_rect = pymupdf.Rect(*bbox)
+    result = []
+    punct_to_strip = '.!?…:;"\x27'
+    for s in s_list:
+        clean_s = re.sub(r"<[^>]+>", "", s).strip()
+        if not clean_s:
+            continue
+        rects = page.search_for(clean_s, clip=clip_rect)
+        if not rects:
+            core_s = clean_s.rstrip(punct_to_strip)
+            if core_s:
+                rects = page.search_for(core_s, clip=clip_rect)
+        if not rects:
+            words = clean_s.split()
+            if len(words) >= 4:
+                first_phrase = " ".join(words[:3])
+                last_phrase = " ".join(words[-3:])
+                r1 = page.search_for(first_phrase, clip=clip_rect)
+                r2 = page.search_for(last_phrase, clip=clip_rect)
+                if r1 and r2:
+                    y0 = min(r.y0 for r in r1)
+                    y1 = max(r.y1 for r in r2)
+                    rects = [pymupdf.Rect(bbox[0], y0, bbox[2], y1)]
+        if not rects:
+            rects = [clip_rect]
+        result.append({
+            "text": s,
+            "rects": [[round(r.x0, 2), round(r.y0, 2), round(r.x1, 2), round(r.y1, 2)] for r in rects],
+        })
+    return result
+
 
 # ---------------------------------------------------------------- bước 5: gom đoạn qua trang
 class _DisjointSet:
@@ -640,7 +708,8 @@ def parse_pdf(path: Path) -> ParsedDocument:
 
         blocks: list[ParsedBlock] = []
         candidates: list[_BlockCandidate] = []
-        for pg, raws in zip(pages, raw_per_page):
+        for pg_idx, (pg, raws) in enumerate(zip(pages, raw_per_page)):
+            doc_page = doc[pg_idx]
             kept = [b for b in raws if not _is_noise(b, pg.height, repeated)]
             lines = [l for b in kept for l in b.lines]
             idx = 0
@@ -660,7 +729,8 @@ def parse_pdf(path: Path) -> ParsedDocument:
                 else:
                     font_sz = sum(l.size for l in group) / max(1, len(group))
                 font_sz = round(font_sz, 1)
-                block = ParsedBlock(pg.number, idx, text, bbox, font_size=font_sz)
+                sentences = _extract_block_sentences(doc_page, text, bbox)
+                block = ParsedBlock(pg.number, idx, text, bbox, font_size=font_sz, sentences=sentences)
                 cand_idx = len(blocks)
                 blocks.append(block)
 

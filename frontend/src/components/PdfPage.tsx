@@ -10,6 +10,7 @@ interface Props {
   aspect: number; // height / width, dùng cho placeholder trước khi render
   data?: PageData;
   selectedGroupId: number | null;
+  activeSentenceHighlight?: [number, number, number, number][] | null;
   onAspect: (page: number, aspect: number) => void;
   onNear: (page: number, near: boolean) => void;
   onCenter: (page: number) => void;
@@ -18,7 +19,7 @@ interface Props {
 
 function PdfPage({
   pdf, pageNumber, cssWidth, aspect, data, selectedGroupId,
-  onAspect, onNear, onCenter, onSelectBlock,
+  activeSentenceHighlight, onAspect, onNear, onCenter, onSelectBlock,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,7 +50,7 @@ function PdfPage({
     return () => io.disconnect();
   }, [pageNumber, onCenter]);
 
-  // 3) Render canvas (sắc nét theo devicePixelRatio, render lại khi đổi zoom).
+  // 3) Render canvas: hủy task cũ nếu user cuộn/zoom nhanh.
   useEffect(() => {
     if (!near) return;
     let cancelled = false;
@@ -106,6 +107,19 @@ function PdfPage({
               onSelect={onSelectBlock}
             />
           ))}
+          {activeSentenceHighlight &&
+            activeSentenceHighlight.map((rect, idx) => (
+              <div
+                key={`sent-hl-${idx}`}
+                className="sentence-highlight"
+                style={{
+                  left: `${(rect[0] / data.page.width) * 100}%`,
+                  top: `${(rect[1] / data.page.height) * 100}%`,
+                  width: `${((rect[2] - rect[0]) / data.page.width) * 100}%`,
+                  height: `${((rect[3] - rect[1]) / data.page.height) * 100}%`,
+                }}
+              />
+            ))}
         </div>
       )}
     </div>

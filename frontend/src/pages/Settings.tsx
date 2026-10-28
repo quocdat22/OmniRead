@@ -1,4 +1,5 @@
 import type React from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   COLOR_PRESETS,
@@ -20,10 +21,14 @@ const OPTIONS: OptionItem[] = [
 ];
 
 const SAMPLE_BLOCK = {
-  original:
-    "OmniRead is designed to make reading foreign language documents natural and effortless. By clicking any text block, you instantly receive contextual translations while preserving the document's original reading flow.",
-  translation:
-    "OmniRead được thiết kế để giúp việc đọc tài liệu ngoại ngữ trở nên tự nhiên và dễ dàng. Bằng cách nhấp vào bất kỳ khối văn bản nào, bạn sẽ nhận được bản dịch ngữ cảnh tức thì mà vẫn giữ nguyên luồng đọc ban đầu.",
+  originalSentences: [
+    "OmniRead is designed to make reading foreign language documents natural and effortless.",
+    "By clicking any text block, you instantly receive contextual translations while preserving the document's original reading flow.",
+  ],
+  translationSentences: [
+    "OmniRead được thiết kế để giúp việc đọc tài liệu ngoại ngữ trở nên tự nhiên và dễ dàng.",
+    "Bằng cách nhấp vào bất kỳ khối văn bản nào, bạn sẽ nhận được bản dịch ngữ cảnh tức thì mà vẫn giữ nguyên luồng đọc ban đầu.",
+  ],
 };
 
 export default function Settings() {
@@ -35,9 +40,14 @@ export default function Settings() {
     color: highlightColor,
     setColor: setHighlightColor,
     colorPreset,
+    sentenceColor,
+    setSentenceColor,
+    sentenceColorPreset,
     fontSize: popupFontSize,
     setFontSize: setPopupFontSize,
   } = useHighlightStyle();
+
+  const [previewHoveredSentence, setPreviewHoveredSentence] = useState<number | null>(0);
 
   const isPaddingEnabled = highlightStyle === "background" || highlightStyle === "border";
 
@@ -86,10 +96,10 @@ export default function Settings() {
             })}
           </div>
 
-          {/* ---------------- Option màu sắc ---------------- */}
+          {/* ---------------- Option màu sắc đánh dấu block ---------------- */}
           <div className="setting-color-row">
             <div className="setting-color-header">
-              <span>Màu sắc đánh dấu:</span>
+              <span>Màu sắc đánh dấu khối (Block Highlight):</span>
               <strong>{colorPreset.name}</strong>
             </div>
             <div className="color-swatches">
@@ -103,7 +113,37 @@ export default function Settings() {
                     style={{ "--swatch-color": col.hex } as React.CSSProperties}
                     onClick={() => setHighlightColor(col.id)}
                     title={col.name}
-                    aria-label={col.name}
+                    aria-label={`Màu khối: ${col.name}`}
+                  >
+                    <span className="color-swatch-circle" />
+                    {isSelected && <span className="color-swatch-check">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ---------------- Option màu sắc tô sáng câu đối chiếu ---------------- */}
+          <div className="setting-color-row">
+            <div className="setting-color-header">
+              <span>Màu tô sáng câu đối chiếu (Sentence Highlight):</span>
+              <strong>{sentenceColorPreset.name}</strong>
+            </div>
+            <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
+              Màu sắc nổi bật tô chồng lên câu tương ứng ở văn bản gốc khi bạn rê chuột vào từng câu trong popup dịch.
+            </p>
+            <div className="color-swatches">
+              {COLOR_PRESETS.map((col) => {
+                const isSelected = sentenceColor === col.id;
+                return (
+                  <button
+                    key={col.id}
+                    type="button"
+                    className={`color-swatch-btn${isSelected ? " active" : ""}`}
+                    style={{ "--swatch-color": col.hex } as React.CSSProperties}
+                    onClick={() => setSentenceColor(col.id)}
+                    title={col.name}
+                    aria-label={`Màu câu: ${col.name}`}
                   >
                     <span className="color-swatch-circle" />
                     {isSelected && <span className="color-swatch-check">✓</span>}
@@ -182,6 +222,9 @@ export default function Settings() {
           <div className="preview-box">
             <div className="preview-header">
               <div className="preview-header-title">Xem trước (Live Preview)</div>
+              <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Rê chuột vào câu ở popup để thử nghiệm đối chiếu câu
+              </span>
             </div>
 
             <div
@@ -192,11 +235,20 @@ export default function Settings() {
                   "--highlight-padding": `${highlightPadding}px`,
                   "--highlight-color": colorPreset.hex,
                   "--highlight-color-rgb": colorPreset.rgb,
+                  "--sentence-highlight-color": sentenceColorPreset.hex,
+                  "--sentence-highlight-color-rgb": sentenceColorPreset.rgb,
                 } as React.CSSProperties
               }
             >
               <div className="preview-block selected">
-                {SAMPLE_BLOCK.original}
+                {SAMPLE_BLOCK.originalSentences.map((s, idx) => (
+                  <span
+                    key={idx}
+                    className={previewHoveredSentence === idx ? "preview-sentence-highlight" : ""}
+                  >
+                    {s}{" "}
+                  </span>
+                ))}
               </div>
 
               <div className="preview-popup-wrapper">
@@ -205,7 +257,18 @@ export default function Settings() {
                     className="preview-popup-body"
                     style={{ fontSize: `${popupFontSize}px` }}
                   >
-                    <p style={{ margin: 0 }}>{SAMPLE_BLOCK.translation}</p>
+                    <p style={{ margin: 0 }}>
+                      {SAMPLE_BLOCK.translationSentences.map((s, idx) => (
+                        <span
+                          key={idx}
+                          className={`popup-sentence ${previewHoveredSentence === idx ? "active" : ""}`}
+                          onMouseEnter={() => setPreviewHoveredSentence(idx)}
+                          onMouseLeave={() => setPreviewHoveredSentence(null)}
+                        >
+                          {s}{" "}
+                        </span>
+                      ))}
+                    </p>
                   </div>
                 </div>
               </div>

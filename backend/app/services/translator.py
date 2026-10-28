@@ -32,6 +32,7 @@ Quy tắc:
   + Không dịch hoặc thay đổi nội dung thuộc tính của thẻ (ví dụ mã màu hex #RRGGBB phải giữ nguyên vẹn).
   + Tuyệt đối không tự ý thêm thẻ vào các từ vốn là văn bản bình thường trong câu gốc.
   + Tuyệt đối không xóa bỏ thẻ nếu từ gốc có thẻ.
+- ĐỐI CHIẾU SONG NGỮ: Khi đoạn văn gồm nhiều câu, hãy cố gắng giữ nguyên cấu trúc số lượng câu tương ứng với nguyên bản để thuận tiện đối chiếu song ngữ từng câu.
 - CHỈ trả về bản dịch: không giải thích, không ghi chú, không bao quanh bằng dấu ngoặc kép."""
 
 BATCH_SYSTEM_PROMPT = """Bạn là dịch giả chuyên nghiệp, dịch sách từ tiếng Anh sang tiếng Việt.
@@ -50,6 +51,8 @@ Quy tắc dịch:
   + Không dịch hoặc thay đổi nội dung thuộc tính của thẻ (ví dụ mã màu hex #RRGGBB phải giữ nguyên vẹn).
   + Tuyệt đối không tự ý thêm thẻ vào các từ vốn là văn bản bình thường trong câu gốc.
   + Tuyệt đối không xóa bỏ thẻ nếu từ gốc có thẻ.
+
+- ĐỐI CHIẾU SONG NGỮ: Khi đoạn văn gồm nhiều câu, hãy cố gắng giữ nguyên cấu trúc số lượng câu tương ứng với nguyên bản để thuận tiện đối chiếu song ngữ từng câu.
 
 Định dạng JSON trả về:
 - Bắt buộc trả về kết quả dưới dạng JSON object hợp lệ với cấu trúc:

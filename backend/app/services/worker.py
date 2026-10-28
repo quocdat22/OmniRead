@@ -147,16 +147,16 @@ class JobManager:
             for group_blocks in groups_dict.values():
                 head = group_blocks[0]
                 cur = await db.execute(
-                    "INSERT INTO blocks (book_id, page, idx, text, bbox, part_no, font_size) VALUES (?, ?, ?, ?, ?, 0, ?)",
-                    (book_id, head.page, head.idx, head.text, json.dumps(head.bbox), head.font_size),
+                    "INSERT INTO blocks (book_id, page, idx, text, bbox, part_no, font_size, sentences) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+                    (book_id, head.page, head.idx, head.text, json.dumps(head.bbox), head.font_size, json.dumps(head.sentences) if head.sentences else None),
                 )
                 head_id = cur.lastrowid
                 await db.execute("UPDATE blocks SET group_id = ? WHERE id = ?", (head_id, head_id))
                 if len(group_blocks) > 1:
                     await db.executemany(
-                        "INSERT INTO blocks (book_id, page, idx, text, bbox, group_id, part_no, font_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO blocks (book_id, page, idx, text, bbox, group_id, part_no, font_size, sentences) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         [
-                            (book_id, child.page, child.idx, child.text, json.dumps(child.bbox), head_id, child.part_no, child.font_size)
+                            (book_id, child.page, child.idx, child.text, json.dumps(child.bbox), head_id, child.part_no, child.font_size, json.dumps(child.sentences) if child.sentences else None)
                             for child in group_blocks[1:]
                         ],
                     )

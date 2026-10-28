@@ -41,97 +41,84 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   const [pages, setPages] = useState<Record<number, PageData>>({});
   const [selected, setSelected] = useState<Selection | null>(null);
+  const [hoveredSentence, setHoveredSentence] = useState<{
+    page: number;
+    rects: [number, number, number, number][];
+  } | null>(null);
 
   const {
     style: highlightStyle,
     padding: highlightPadding,
     colorPreset,
+    sentenceColorPreset,
   } = useHighlightStyle();
   const [progress, restartProgress] = useProgress(bookId);
 
-  const pagesRef = useRef(pages);
-  pagesRef.current = pages;
-  const inflight = useRef(new Set<number>());
-  const nearPages = useRef(new Set<number>());
-  const canSave = useRef(false);
-  const zoomRatio = useRef<number | null>(null);
-
   // ---------------------------------------------------------------- tải sách + PDF
   useEffect(() => {
-    let cancelled = false;
-    setError(null);
-
-    api.getBook(bookId)
-      .then((b) => {
-        if (!cancelled) setBook(b);
-      })
-      .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
-      });
-
-    const task = pdfjs.getDocument({ url: api.fileUrl(bookId) });
-    task.promise
-      .then(async (doc) => {
-        if (cancelled) return;
-        const page1 = await doc.getPage(1);
-        if (cancelled) return;
-        const v = page1.getViewport({ scale: 1 });
-        setDefaultAspect(v.height / v.width);
+    let active = true;
+    (async () => {
+      try {
+        const b = await api.getBook(bookId);
+        if (!active) return;
+        setBook(b);
+        const task = pdfjs.getDocument({
+          url: api.fileUrl(bookId),
+          cMapUrl: "https://unpkg.com/pdfjs-dist@4.10.38/cmaps/",
+          cMapPacked: true,
+        });
+        const doc = await task.promise;
+        if (!active) return;
         setPdf(doc);
-      })
-      .catch((e: Error) => {
-        if (cancelled) return;
-        if (e.name === "AbortException" || e.message?.toLowerCase().includes("abort")) return;
-        setError(`Không mở được PDF: ${e.message}`);
-      });
-
+        const p1 = await doc.getPage(1);
+        const v = p1.getViewport({ scale: 1 });
+        setDefaultAspect(v.height / v.width);
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof ApiError ? e.message : (e as Error).message);
+      }
+    })();
     return () => {
-      cancelled = true;
-      void task.destroy();
+      active = false;
     };
   }, [bookId]);
 
-  // Khôi phục trang đọc dở.
+  // Nhớ trang đã đọc
   useEffect(() => {
-    if (!pdf) return;
-    const saved = readSavedPage(bookId);
-    requestAnimationFrame(() => {
-      if (saved > 1) document.getElementById(`page-${saved}`)?.scrollIntoView();
-      setTimeout(() => (canSave.current = true), 400);
-    });
-  }, [pdf, bookId]);
-
-  useEffect(() => {
-    setJump(String(current));
-    if (!canSave.current) return;
     try {
       localStorage.setItem(lastPageKey(bookId), String(current));
     } catch {
-      /* bỏ qua */
+      /* ignore */
     }
-  }, [current, bookId]);
+    setJump(String(current));
+  }, [bookId, current]);
 
-  // ---------------------------------------------------------------- tải block theo trang
+  // ---------------------------------------------------------------- tải blocks theo trang
+  const loadingPages = useRef<Set<number>>(new Set());
+  const pagesRef = useRef(pages);
+  pagesRef.current = pages;
+
   const loadPage = useCallback(
-    async (n: number, force = false) => {
-      if (inflight.current.has(n) || (!force && pagesRef.current[n])) return;
-      inflight.current.add(n);
+    async (page: number, force = false) => {
+      if (!force && pagesRef.current[page]) return;
+      if (loadingPages.current.has(page)) return;
+      loadingPages.current.add(page);
       try {
-        const data = await api.getBlocks(bookId, n);
-        setPages((p) => ({ ...p, [n]: data }));
+        const data = await api.getBlocks(bookId, page);
+        setPages((prev) => ({ ...prev, [page]: data }));
       } catch (e) {
-        // 409 = sách đang parse: sẽ thử lại khi tiến độ đổi trạng thái.
-        if (!(e instanceof ApiError && e.status === 409)) console.error(e);
+        if (!(e instanceof ApiError && e.status === 404)) console.error(e);
       } finally {
-        inflight.current.delete(n);
+        loadingPages.current.delete(page);
       }
     },
     [bookId],
   );
 
+  const nearPages = useRef<Set<number>>(new Set());
   const onNear = useCallback(
-    (n: number, near: boolean) => {
-      if (near) {
+    (n: number, isNear: boolean) => {
+      if (isNear) {
         nearPages.current.add(n);
         void loadPage(n);
       } else {
@@ -156,6 +143,7 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   // ---------------------------------------------------------------- chọn block / popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
+    setHoveredSentence(null);
     setSelected((prev) =>
       prev?.blockId === block.id
         ? null
@@ -163,7 +151,25 @@ export default function Reader({ bookId }: { bookId: number }) {
     );
   }, []);
 
-  const closePopup = useCallback(() => setSelected(null), []);
+  const closePopup = useCallback(() => {
+    setSelected(null);
+    setHoveredSentence(null);
+  }, []);
+
+  useEffect(() => {
+    if (!selected) setHoveredSentence(null);
+  }, [selected]);
+
+  const onHoverSentence = useCallback(
+    (rects: [number, number, number, number][] | null) => {
+      if (!rects || !selected) {
+        setHoveredSentence(null);
+      } else {
+        setHoveredSentence({ page: selected.page, rects });
+      }
+    },
+    [selected],
+  );
 
   const selectedBlock = selected
     ? (pages[selected.page]?.blocks.find((b) => b.id === selected.blockId) ?? null)
@@ -211,6 +217,7 @@ export default function Reader({ bookId }: { bookId: number }) {
       const el = document.querySelector<HTMLElement>(`[data-block-id="${next.id}"]`);
       if (!next || !el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
+      setHoveredSentence(null);
       setSelected({ page: next.page, blockId: next.id, groupId: next.group_id, el });
     },
     [orderedBlocks, selected],
@@ -245,6 +252,7 @@ export default function Reader({ bookId }: { bookId: number }) {
     setZoom(Math.min(2.5, Math.max(0.5, Math.round(next * 100) / 100)));
   }
   // Giữ nguyên vị trí đọc (theo tỉ lệ) sau khi đổi zoom.
+  const zoomRatio = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (zoomRatio.current == null) return;
     window.scrollTo(0, zoomRatio.current * document.documentElement.scrollHeight);
@@ -288,14 +296,23 @@ export default function Reader({ bookId }: { bookId: number }) {
               {progress.errors > 0 && <span className="err">{progress.errors} lỗi</span>}
             </>
           )}
-          {canRetry && <button className="btn" onClick={retryErrors}>Thử lại</button>}
         </div>
 
-        <span className="grow" />
-        <label className="page-jump">
+        {canRetry && (
+          <button className="btn btn-primary" onClick={retryErrors}>
+            Dịch lại lỗi
+          </button>
+        )}
+
+        <div className="filler" />
+
+        <label className="page-nav">
           Trang
           <input
-            type="number" min={1} max={pdf?.numPages} value={jump}
+            type="number"
+            min={1}
+            max={pdf?.numPages ?? 1}
+            value={jump}
             onChange={(e) => setJump(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && goTo(Number(jump))}
           />
@@ -320,6 +337,8 @@ export default function Reader({ bookId }: { bookId: number }) {
             "--highlight-padding": `${highlightPadding}px`,
             "--highlight-color": colorPreset.hex,
             "--highlight-color-rgb": colorPreset.rgb,
+            "--sentence-highlight-color": sentenceColorPreset.hex,
+            "--sentence-highlight-color-rgb": sentenceColorPreset.rgb,
           } as React.CSSProperties
         }
       >
@@ -333,6 +352,9 @@ export default function Reader({ bookId }: { bookId: number }) {
               aspect={aspects[n] ?? defaultAspect}
               data={pages[n]}
               selectedGroupId={selected?.groupId ?? null}
+              activeSentenceHighlight={
+                hoveredSentence?.page === n ? hoveredSentence.rects : null
+              }
               onAspect={onAspect}
               onNear={onNear}
               onCenter={onCenter}
@@ -347,6 +369,7 @@ export default function Reader({ bookId }: { bookId: number }) {
           reference={selected.el}
           pageWidth={pages[selected.page]?.page.width}
           onClose={closePopup}
+          onHoverSentence={onHoverSentence}
         />
       )}
     </div>

@@ -97,6 +97,10 @@ def main() -> None:
         assert all(b["translation"].startswith("[VI] ") for b in r["blocks"])
         assert any(b.get("font_size") == 18.0 for b in r["blocks"]), "Heading font_size 18.0 not found"
         assert any(b.get("font_size") == 11.0 for b in r["blocks"]), "Paragraph font_size 11.0 not found"
+        assert any(b.get("sentences") and len(b["sentences"]) > 0 for b in r["blocks"]), "Sentences not found in blocks"
+        multi_s_block = next(b for b in r["blocks"] if len(b.get("sentences", [])) > 1)
+        assert len(multi_s_block["sentences"]) == 3, f"Expected 3 sentences, got {len(multi_s_block['sentences'])}"
+        assert all(len(s["rects"]) >= 1 for s in multi_s_block["sentences"])
 
         assert c.get(f"/api/books/{book_id}/file").headers["content-type"] == "application/pdf"
         assert c.get(f"/api/books/{book_id}/blocks", params={"page": 99}).status_code == 404

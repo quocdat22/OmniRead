@@ -214,6 +214,73 @@ body {
 .popup-body p:last-child { margin-bottom: 0; }
 .popup-body em { font-style: italic; }
 .popup-body strong { font-weight: 600; }
+
+/* ---------------- Sentence Hover & Highlight ---------------- */
+.popup-sentence {
+  display: inline;
+  padding: 1px 3px;
+  margin: 0 -2px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.popup-sentence:hover,
+.popup-sentence.active {
+  background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  .popup-sentence:hover,
+  .popup-sentence.active {
+    background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.32);
+  }
+}
+
+.sentence-highlight {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 3px;
+  z-index: 35;
+  background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.42);
+  box-shadow: 0 0 0 1.5px var(--sentence-highlight-color, #eab308),
+              0 2px 10px rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.35);
+  animation: sentence-fade-in 0.12s ease-out forwards;
+  mix-blend-mode: multiply;
+}
+
+@keyframes sentence-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .sentence-highlight {
+    background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.48);
+    box-shadow: 0 0 0 1.5px var(--sentence-highlight-color, #eab308),
+                0 2px 12px rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.45);
+    mix-blend-mode: screen;
+  }
+}
+
+.preview-sentence-highlight {
+  display: inline;
+  background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.4);
+  box-shadow: 0 0 0 1.5px var(--sentence-highlight-color, #eab308);
+  border-radius: 3px;
+  padding: 1px 3px;
+  margin: 0 -2px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+@media (prefers-color-scheme: dark) {
+  .preview-sentence-highlight {
+    background-color: rgba(var(--sentence-highlight-color-rgb, 234, 179, 8), 0.48);
+  }
+}
 @media (prefers-color-scheme: dark) {
   .popup-body [data-color] {
     filter: brightness(1.35) saturate(1.2);

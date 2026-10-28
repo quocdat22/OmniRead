@@ -116,6 +116,7 @@ async def get_blocks(book_id: int, page: int = Query(..., ge=1)):
                 COALESCE(b.group_id, b.id)             AS group_id,
                 b.part_no,
                 b.font_size,
+                b.sentences,
                 (SELECT COUNT(*) FROM blocks g WHERE g.book_id = b.book_id AND COALESCE(g.group_id, g.id) = COALESCE(b.group_id, b.id)) AS group_size
             FROM blocks b
             LEFT JOIN blocks h ON h.id = b.group_id
