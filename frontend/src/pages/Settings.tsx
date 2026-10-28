@@ -1,6 +1,9 @@
 import type React from "react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 import {
   COLOR_PRESETS,
   DEFAULT_HIGHLIGHT_PADDING,
@@ -77,241 +80,313 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="settings-group">
-        <div className="settings-card">
-          <div className="settings-card-header">
-            <h2>Kiểu đánh dấu vùng chọn (Block Highlight)</h2>
-            <p>
-              Chọn cách khối/đoạn văn bản được làm nổi bật khi bạn click để xem bản dịch qua popup.
-            </p>
-          </div>
+      <Tabs defaultValue="appearance" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="appearance">Giao diện & Highlight</TabsTrigger>
+          <TabsTrigger value="translation">Dịch thuật & AI</TabsTrigger>
+          <TabsTrigger value="shortcuts">Phím tắt & Trợ năng</TabsTrigger>
+        </TabsList>
 
-          <div className="option-grid">
-            {OPTIONS.map((opt) => {
-              const isSelected = highlightStyle === opt.id;
-              return (
-                <div
-                  key={opt.id}
-                  className={`option-card${isSelected ? " active" : ""}`}
-                  data-style={opt.id}
-                  onClick={() => setHighlightStyle(opt.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setHighlightStyle(opt.id)}
-                >
-                  <span className="option-radio">
-                    {isSelected && <span className="option-radio-dot" />}
-                  </span>
-                  <h3 className="option-card-title">{opt.title}</h3>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ---------------- Option Kiểu đối chiếu câu trong tài liệu gốc ---------------- */}
-          <div className="setting-color-row">
-            <div className="setting-color-header">
-              <span>Kiểu sáng câu đối chiếu gốc khi hover:</span>
-              <strong>{sentenceStyle === "bracket" ? "Dấu ngoặc góc 「 … 」" : "Khối phủ (Block)"}</strong>
-            </div>
-            <p style={{ margin: "4px 0 12px", fontSize: "13px", color: "var(--muted)" }}>
-              Chọn cách câu văn trong tài liệu gốc sáng lên khi bạn rê chuột vào từng câu dịch trong popup.
-            </p>
-            <div className="option-grid" style={{ marginBottom: 0 }}>
-              {SENTENCE_OPTIONS.map((opt) => {
-                const isSelected = sentenceStyle === opt.id;
-                return (
-                  <div
-                    key={opt.id}
-                    className={`option-card${isSelected ? " active" : ""}`}
-                    onClick={() => setSentenceStyle(opt.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSentenceStyle(opt.id)}
-                  >
-                    <span className="option-radio">
-                      {isSelected && <span className="option-radio-dot" />}
-                    </span>
-                    <div>
-                      <h3 className="option-card-title">{opt.title}</h3>
-                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)", lineHeight: 1.4 }}>
-                        {opt.desc}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---------------- Option màu sắc đánh dấu block & câu ---------------- */}
-          <div className="setting-color-row">
-            <div className="setting-color-header">
-              <span>Màu sắc nổi bật (Highlight Color):</span>
-              <strong>{colorPreset.name}</strong>
-            </div>
-            <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
-              Màu sắc đánh dấu khối và ký hiệu đối chiếu câu. Ký hiệu câu sẽ đồng bộ theo tông màu này để tạo sự thống nhất.
-            </p>
-            <div className="color-swatches">
-              {COLOR_PRESETS.map((col) => {
-                const isSelected = highlightColor === col.id;
-                return (
-                  <button
-                    key={col.id}
-                    type="button"
-                    className={`color-swatch-btn${isSelected ? " active" : ""}`}
-                    style={{ "--swatch-color": col.hex } as React.CSSProperties}
-                    onClick={() => setHighlightColor(col.id)}
-                    title={col.name}
-                    aria-label={`Màu: ${col.name}`}
-                  >
-                    <span className="color-swatch-circle" />
-                    {isSelected && <span className="color-swatch-check">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---------------- Slider thiết lập Padding ---------------- */}
-          <div className={`setting-slider-row${!isPaddingEnabled ? " disabled" : ""}`}>
-            <div className="slider-label">
-              <span>Khoảng đệm (Padding):</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {highlightPadding === DEFAULT_HIGHLIGHT_PADDING && (
-                  <span className="default-tag">Mặc định</span>
-                )}
-                <strong>{highlightPadding}px</strong>
+        {/* Tab 1: Appearance */}
+        <TabsContent value="appearance">
+          <div className="settings-group">
+            <div className="settings-card">
+              <div className="settings-card-header">
+                <h2>Kiểu đánh dấu vùng chọn (Block Highlight)</h2>
+                <p>
+                  Chọn cách khối/đoạn văn bản được làm nổi bật khi bạn click để xem bản dịch qua popup.
+                </p>
               </div>
-            </div>
-            <div className="slider-control">
-              <input
-                type="range"
-                min={0}
-                max={16}
-                step={1}
-                value={highlightPadding}
-                disabled={!isPaddingEnabled}
-                onChange={(e) => setHighlightPadding(Number(e.target.value))}
-                className="padding-slider"
-                aria-label="Khoảng đệm padding"
-              />
-              <div className="slider-ticks">
-                <span>0px</span>
-                <span className="tick-default">4px (Mặc định)</span>
-                <span>8px</span>
-                <span>12px</span>
-                <span>16px</span>
-              </div>
-            </div>
-          </div>
 
-          {/* ---------------- Slider thiết lập Font Size của Popup ---------------- */}
-          <div className="setting-slider-row">
-            <div className="slider-label">
-              <span>Cỡ chữ nội dung popup:</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {popupFontSize === DEFAULT_POPUP_FONT_SIZE && (
-                  <span className="default-tag">Mặc định</span>
-                )}
-                <strong>{popupFontSize}px</strong>
-              </div>
-            </div>
-            <div className="slider-control">
-              <input
-                type="range"
-                min={12}
-                max={24}
-                step={1}
-                value={popupFontSize}
-                onChange={(e) => setPopupFontSize(Number(e.target.value))}
-                className="padding-slider"
-                aria-label="Cỡ chữ nội dung popup"
-              />
-              <div className="slider-ticks">
-                <span>12px</span>
-                <span className="tick-default">15px (Mặc định)</span>
-                <span>18px</span>
-                <span>21px</span>
-                <span>24px</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ---------------- Live Preview Section ---------------- */}
-          <div className="preview-box">
-            <div className="preview-header">
-              <div className="preview-header-title">Xem trước (Live Preview)</div>
-              <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                Rê chuột vào câu ở popup để thử nghiệm đối chiếu câu
-              </span>
-            </div>
-
-            <div
-              className="preview-paper"
-              data-highlight-style={highlightStyle}
-              style={
-                {
-                  "--highlight-padding": `${highlightPadding}px`,
-                  "--highlight-color": colorPreset.hex,
-                  "--highlight-color-rgb": colorPreset.rgb,
-                  "--sentence-highlight-color": colorPreset.sentenceHex,
-                  "--sentence-highlight-color-rgb": colorPreset.sentenceRgb,
-                } as React.CSSProperties
-              }
-            >
-              <div className="preview-block selected">
-                {SAMPLE_BLOCK.originalSentences.map((s, idx) => {
-                  const isHovered = previewHoveredSentence === idx;
-                  if (sentenceStyle === "bracket") {
-                    return (
-                      <span
-                        key={idx}
-                        className={`preview-sentence-bracket${isHovered ? " active" : ""}`}
-                      >
-                        {isHovered && <span className="preview-bracket-mark bracket-start">「</span>}
-                        {s}
-                        {isHovered && <span className="preview-bracket-mark bracket-end">」</span>}{" "}
-                      </span>
-                    );
-                  }
+              <div className="option-grid">
+                {OPTIONS.map((opt) => {
+                  const isSelected = highlightStyle === opt.id;
                   return (
-                    <span
-                      key={idx}
-                      className={isHovered ? "preview-sentence-highlight" : ""}
+                    <div
+                      key={opt.id}
+                      className={`option-card${isSelected ? " active" : ""}`}
+                      data-style={opt.id}
+                      onClick={() => setHighlightStyle(opt.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setHighlightStyle(opt.id)}
                     >
-                      {s}{" "}
-                    </span>
+                      <span className="option-radio">
+                        {isSelected && <span className="option-radio-dot" />}
+                      </span>
+                      <h3 className="option-card-title">{opt.title}</h3>
+                    </div>
                   );
                 })}
               </div>
 
-              <div className="preview-popup-wrapper">
-                <div className="preview-popup">
-                  <div
-                    className="preview-popup-body"
-                    style={{ fontSize: `${popupFontSize}px` }}
-                  >
-                    <p style={{ margin: 0 }}>
-                      {SAMPLE_BLOCK.translationSentences.map((s, idx) => (
+              {/* Option Kiểu đối chiếu câu trong tài liệu gốc */}
+              <div className="setting-color-row">
+                <div className="setting-color-header">
+                  <span>Kiểu sáng câu đối chiếu gốc khi hover:</span>
+                  <strong>{sentenceStyle === "bracket" ? "Dấu ngoặc góc 「 … 」" : "Khối phủ (Block)"}</strong>
+                </div>
+                <p style={{ margin: "4px 0 12px", fontSize: "13px", color: "var(--muted)" }}>
+                  Chọn cách câu văn trong tài liệu gốc sáng lên khi bạn rê chuột vào từng câu dịch trong popup.
+                </p>
+                <div className="option-grid" style={{ marginBottom: 0 }}>
+                  {SENTENCE_OPTIONS.map((opt) => {
+                    const isSelected = sentenceStyle === opt.id;
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`option-card${isSelected ? " active" : ""}`}
+                        onClick={() => setSentenceStyle(opt.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSentenceStyle(opt.id)}
+                      >
+                        <span className="option-radio">
+                          {isSelected && <span className="option-radio-dot" />}
+                        </span>
+                        <div>
+                          <h3 className="option-card-title">{opt.title}</h3>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)", lineHeight: 1.4 }}>
+                            {opt.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Option màu sắc đánh dấu block & câu */}
+              <div className="setting-color-row">
+                <div className="setting-color-header">
+                  <span>Màu sắc nổi bật (Highlight Color):</span>
+                  <strong>{colorPreset.name}</strong>
+                </div>
+                <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
+                  Màu sắc đánh dấu khối và ký hiệu đối chiếu câu. Ký hiệu câu sẽ đồng bộ theo tông màu này để tạo sự thống nhất.
+                </p>
+                <div className="color-swatches">
+                  {COLOR_PRESETS.map((col) => {
+                    const isSelected = highlightColor === col.id;
+                    return (
+                      <SimpleTooltip key={col.id} content={`${col.name} (${col.hex})`}>
+                        <button
+                          type="button"
+                          className={`color-swatch-btn${isSelected ? " active" : ""}`}
+                          style={{ "--swatch-color": col.hex } as React.CSSProperties}
+                          onClick={() => setHighlightColor(col.id)}
+                          aria-label={`Màu: ${col.name}`}
+                        >
+                          <span className="color-swatch-circle" />
+                          {isSelected && <span className="color-swatch-check">✓</span>}
+                        </button>
+                      </SimpleTooltip>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Radix Slider thiết lập Padding */}
+              <div className={`setting-slider-row${!isPaddingEnabled ? " disabled opacity-50 pointer-events-none" : ""}`}>
+                <div className="slider-label">
+                  <span>Khoảng đệm (Padding):</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {highlightPadding === DEFAULT_HIGHLIGHT_PADDING && (
+                      <span className="default-tag">Mặc định</span>
+                    )}
+                    <strong>{highlightPadding}px</strong>
+                  </div>
+                </div>
+                <div className="slider-control py-2">
+                  <Slider
+                    min={0}
+                    max={16}
+                    step={1}
+                    value={[highlightPadding]}
+                    disabled={!isPaddingEnabled}
+                    onValueChange={(val) => setHighlightPadding(val[0])}
+                    aria-label="Khoảng đệm padding"
+                  />
+                  <div className="slider-ticks">
+                    <span>0px</span>
+                    <span className="tick-default">4px (Mặc định)</span>
+                    <span>8px</span>
+                    <span>12px</span>
+                    <span>16px</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Radix Slider thiết lập Font Size của Popup */}
+              <div className="setting-slider-row">
+                <div className="slider-label">
+                  <span>Cỡ chữ nội dung popup:</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {popupFontSize === DEFAULT_POPUP_FONT_SIZE && (
+                      <span className="default-tag">Mặc định</span>
+                    )}
+                    <strong>{popupFontSize}px</strong>
+                  </div>
+                </div>
+                <div className="slider-control py-2">
+                  <Slider
+                    min={12}
+                    max={24}
+                    step={1}
+                    value={[popupFontSize]}
+                    onValueChange={(val) => setPopupFontSize(val[0])}
+                    aria-label="Cỡ chữ nội dung popup"
+                  />
+                  <div className="slider-ticks">
+                    <span>12px</span>
+                    <span className="tick-default">15px (Mặc định)</span>
+                    <span>18px</span>
+                    <span>21px</span>
+                    <span>24px</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Section */}
+              <div className="preview-box">
+                <div className="preview-header">
+                  <div className="preview-header-title">Xem trước (Live Preview)</div>
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                    Rê chuột vào câu ở popup để thử nghiệm đối chiếu câu
+                  </span>
+                </div>
+
+                <div
+                  className="preview-paper"
+                  data-highlight-style={highlightStyle}
+                  style={
+                    {
+                      "--highlight-padding": `${highlightPadding}px`,
+                      "--highlight-color": colorPreset.hex,
+                      "--highlight-color-rgb": colorPreset.rgb,
+                      "--sentence-highlight-color": colorPreset.sentenceHex,
+                      "--sentence-highlight-color-rgb": colorPreset.sentenceRgb,
+                    } as React.CSSProperties
+                  }
+                >
+                  <div className="preview-block selected">
+                    {SAMPLE_BLOCK.originalSentences.map((s, idx) => {
+                      const isHovered = previewHoveredSentence === idx;
+                      if (sentenceStyle === "bracket") {
+                        return (
+                          <span
+                            key={idx}
+                            className={`preview-sentence-bracket${isHovered ? " active" : ""}`}
+                          >
+                            {isHovered && <span className="preview-bracket-mark bracket-start">「</span>}
+                            {s}
+                            {isHovered && <span className="preview-bracket-mark bracket-end">」</span>}{" "}
+                          </span>
+                        );
+                      }
+                      return (
                         <span
                           key={idx}
-                          className={`popup-sentence ${previewHoveredSentence === idx ? "active" : ""}`}
-                          onMouseEnter={() => setPreviewHoveredSentence(idx)}
-                          onMouseLeave={() => setPreviewHoveredSentence(null)}
+                          className={isHovered ? "preview-sentence-highlight" : ""}
                         >
                           {s}{" "}
                         </span>
-                      ))}
-                    </p>
+                      );
+                    })}
+                  </div>
+
+                  <div className="preview-popup-wrapper">
+                    <div className="preview-popup">
+                      <div
+                        className="preview-popup-body"
+                        style={{ fontSize: `${popupFontSize}px` }}
+                      >
+                        <p style={{ margin: 0 }}>
+                          {SAMPLE_BLOCK.translationSentences.map((s, idx) => (
+                            <span
+                              key={idx}
+                              className={`popup-sentence ${previewHoveredSentence === idx ? "active" : ""}`}
+                              onMouseEnter={() => setPreviewHoveredSentence(idx)}
+                              onMouseLeave={() => setPreviewHoveredSentence(null)}
+                            >
+                              {s}{" "}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+
+        {/* Tab 2: Translation & AI */}
+        <TabsContent value="translation">
+          <div className="settings-group">
+            <div className="settings-card">
+              <div className="settings-card-header">
+                <h2>Cấu hình Dịch thuật & Mô hình DeepSeek</h2>
+                <p>Thông tin và cơ chế xử lý song ngữ thông minh trong OmniRead.</p>
+              </div>
+
+              <div className="space-y-4 text-sm text-[var(--fg)]">
+                <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
+                  <h3 className="font-semibold mb-2">1. Khóa bảo mật DeepSeek API Key</h3>
+                  <p className="text-[var(--muted)] mb-3">
+                    OmniRead sử dụng mô hình DeepSeek qua endpoint OpenAI-compatible để dịch thuật câu văn chính xác, tự nhiên theo ngữ cảnh học thuật và sách chuyên khảo.
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    Khóa được cấu hình an toàn ở phía máy chủ trong file <code>backend/.env</code>:
+                  </p>
+                  <pre className="mt-2 rounded bg-black/10 dark:bg-black/30 p-2 text-xs font-mono">
+                    DEEPSEEK_API_KEY=sk-your-api-key-here
+                  </pre>
+                </div>
+
+                <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
+                  <h3 className="font-semibold mb-2">2. Cơ chế đối chiếu câu chuẩn xác (@floating-ui)</h3>
+                  <p className="text-[var(--muted)]">
+                    Hệ thống tự động phân tách câu văn bản gốc và câu bản dịch tương ứng. Khi bạn rê chuột vào bất kỳ câu dịch nào trong popup, văn bản gốc trên trang sách sẽ được chiếu sáng ngay lập tức.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Tab 3: Shortcuts & Accessibility */}
+        <TabsContent value="shortcuts">
+          <div className="settings-group">
+            <div className="settings-card">
+              <div className="settings-card-header">
+                <h2>Phím tắt & Khả năng truy cập (Accessibility)</h2>
+                <p>Điều hướng nhanh chóng bằng bàn phím theo tiêu chuẩn WAI-ARIA.</p>
+              </div>
+
+              <div className="grid gap-3 text-sm">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                  <span>Mở bảng phím tắt trợ năng trong trình đọc</span>
+                  <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">?</kbd>
+                </div>
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                  <span>Đóng popup dịch hoặc hộp thoại</span>
+                  <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">Esc</kbd>
+                </div>
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                  <span>Điều chỉnh Slider / Chọn Tab</span>
+                  <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">← / →</kbd>
+                </div>
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                  <span>Mở menu thao tác / Kích hoạt</span>
+                  <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">Enter / Space</kbd>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

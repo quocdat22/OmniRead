@@ -1,14 +1,47 @@
+import {
+  ArrowLeft,
+  HelpCircle,
+  Maximize2,
+  Minus,
+  Plus,
+  RefreshCw,
+  Sliders,
+} from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type React from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
 import PdfPage from "../components/PdfPage";
 import TranslationPopup from "../components/TranslationPopup";
-import { useHighlightStyle } from "../hooks/useHighlightStyle";
+import {
+  COLOR_PRESETS,
+  useHighlightStyle,
+} from "../hooks/useHighlightStyle";
 import { useProgress } from "../hooks/useProgress";
 import { pdfjs } from "../pdf";
-import type { Block, Book, PageData } from "../types";
+import type { Block, Book, HighlightStyle, PageData, SentenceHighlightStyle } from "../types";
 
 const BASE_WIDTH = 820; // px ở zoom 100%
 const lastPageKey = (id: number) => `reader:lastPage:${id}`;
@@ -33,7 +66,9 @@ export default function Reader({ bookId }: { bookId: number }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [zoom, setZoom] = useState(() => Math.min(1, (window.innerWidth - 32) / BASE_WIDTH));
+  const [zoom, setZoom] = useState(() =>
+    Math.min(1, (window.innerWidth - 32) / BASE_WIDTH)
+  );
   const [defaultAspect, setDefaultAspect] = useState(1.414);
   const [aspects, setAspects] = useState<Record<number, number>>({});
   const [current, setCurrent] = useState(() => readSavedPage(bookId));
@@ -45,12 +80,19 @@ export default function Reader({ bookId }: { bookId: number }) {
     page: number;
     rects: [number, number, number, number][];
   } | null>(null);
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
 
   const {
     style: highlightStyle,
+    setStyle: setHighlightStyle,
     sentenceStyle,
+    setSentenceStyle,
     padding: highlightPadding,
+    color: highlightColor,
+    setColor: setHighlightColor,
     colorPreset,
+    fontSize: popupFontSize,
+    setFontSize: setPopupFontSize,
   } = useHighlightStyle();
   const [progress, restartProgress] = useProgress(bookId);
 
@@ -112,7 +154,7 @@ export default function Reader({ bookId }: { bookId: number }) {
         loadingPages.current.delete(page);
       }
     },
-    [bookId],
+    [bookId]
   );
 
   const nearPages = useRef<Set<number>>(new Set());
@@ -125,7 +167,7 @@ export default function Reader({ bookId }: { bookId: number }) {
         nearPages.current.delete(n);
       }
     },
-    [loadPage],
+    [loadPage]
   );
 
   // Khi tiến độ dịch đổi: tải lại các trang đang gần màn hình mà còn block chưa dịch.
@@ -134,12 +176,20 @@ export default function Reader({ bookId }: { bookId: number }) {
     const t = setTimeout(() => {
       nearPages.current.forEach((n) => {
         const pd = pagesRef.current[n];
-        const unfinished = pd?.blocks.some((b) => b.status === "pending" || b.status === "translating");
+        const unfinished = pd?.blocks.some(
+          (b) => b.status === "pending" || b.status === "translating"
+        );
         if (!pd || unfinished) void loadPage(n, true);
       });
     }, 600);
     return () => clearTimeout(t);
-  }, [progress?.done, progress?.pages_done, progress?.errors, progress?.status, loadPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    progress?.done,
+    progress?.pages_done,
+    progress?.errors,
+    progress?.status,
+    loadPage,
+  ]);
 
   // ---------------------------------------------------------------- chọn block / popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
@@ -147,7 +197,7 @@ export default function Reader({ bookId }: { bookId: number }) {
     setSelected((prev) =>
       prev?.blockId === block.id
         ? null
-        : { page: block.page, blockId: block.id, groupId: block.group_id, el },
+        : { page: block.page, blockId: block.id, groupId: block.group_id, el }
     );
   }, []);
 
@@ -168,11 +218,12 @@ export default function Reader({ bookId }: { bookId: number }) {
         setHoveredSentence({ page: selected.page, rects });
       }
     },
-    [selected],
+    [selected]
   );
 
   const selectedBlock = selected
-    ? (pages[selected.page]?.blocks.find((b) => b.id === selected.blockId) ?? null)
+    ? pages[selected.page]?.blocks.find((b) => b.id === selected.blockId) ??
+      null
     : null;
 
   const orderedBlocks = useMemo(
@@ -180,14 +231,16 @@ export default function Reader({ bookId }: { bookId: number }) {
       Object.values(pages)
         .sort((a, b) => a.page.number - b.page.number)
         .flatMap((p) => p.blocks),
-    [pages],
+    [pages]
   );
 
   const move = useCallback(
     (delta: number) => {
       if (!selected) return;
       const currentGroupId = selected.groupId;
-      const currentIndex = orderedBlocks.findIndex((b) => b.id === selected.blockId);
+      const currentIndex = orderedBlocks.findIndex(
+        (b) => b.id === selected.blockId
+      );
       if (currentIndex === -1) return;
 
       let nextIndex = currentIndex;
@@ -203,7 +256,10 @@ export default function Reader({ bookId }: { bookId: number }) {
           if (orderedBlocks[i].group_id !== currentGroupId) {
             const targetGroupId = orderedBlocks[i].group_id;
             let firstPiece = i;
-            while (firstPiece > 0 && orderedBlocks[firstPiece - 1].group_id === targetGroupId) {
+            while (
+              firstPiece > 0 &&
+              orderedBlocks[firstPiece - 1].group_id === targetGroupId
+            ) {
               firstPiece--;
             }
             nextIndex = firstPiece;
@@ -214,21 +270,36 @@ export default function Reader({ bookId }: { bookId: number }) {
 
       if (nextIndex === currentIndex) return;
       const next = orderedBlocks[nextIndex];
-      const el = document.querySelector<HTMLElement>(`[data-block-id="${next.id}"]`);
+      const el = document.querySelector<HTMLElement>(
+        `[data-block-id="${next.id}"]`
+      );
       if (!next || !el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
       setHoveredSentence(null);
-      setSelected({ page: next.page, blockId: next.id, groupId: next.group_id, el });
+      setSelected({
+        page: next.page,
+        blockId: next.id,
+        groupId: next.group_id,
+        el,
+      });
     },
-    [orderedBlocks, selected],
+    [orderedBlocks, selected]
   );
 
+  // Phím tắt bàn phím
   useEffect(() => {
-    if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === "INPUT") return;
-      if (e.key === "ArrowRight") (e.preventDefault(), move(1));
-      else if (e.key === "ArrowLeft") (e.preventDefault(), move(-1));
+      if (e.key === "ArrowRight" && selected) {
+        e.preventDefault();
+        move(1);
+      } else if (e.key === "ArrowLeft" && selected) {
+        e.preventDefault();
+        move(-1);
+      } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowShortcutsDialog(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -242,13 +313,16 @@ export default function Reader({ bookId }: { bookId: number }) {
   // ---------------------------------------------------------------- zoom / điều hướng trang
   const onAspect = useCallback(
     (n: number, a: number) =>
-      setAspects((prev) => (Math.abs((prev[n] ?? 0) - a) < 0.001 ? prev : { ...prev, [n]: a })),
-    [],
+      setAspects((prev) =>
+        Math.abs((prev[n] ?? 0) - a) < 0.001 ? prev : { ...prev, [n]: a }
+      ),
+    []
   );
   const onCenter = useCallback((n: number) => setCurrent(n), []);
 
   function changeZoom(next: number) {
-    zoomRatio.current = window.scrollY / Math.max(1, document.documentElement.scrollHeight);
+    zoomRatio.current =
+      window.scrollY / Math.max(1, document.documentElement.scrollHeight);
     setZoom(Math.min(2.5, Math.max(0.5, Math.round(next * 100) / 100)));
   }
   // Giữ nguyên vị trí đọc (theo tỉ lệ) sau khi đổi zoom.
@@ -269,19 +343,30 @@ export default function Reader({ bookId }: { bookId: number }) {
   const cssWidth = Math.round(BASE_WIDTH * zoom);
   const pageNumbers = useMemo(
     () => Array.from({ length: pdf?.numPages ?? 0 }, (_, i) => i + 1),
-    [pdf],
+    [pdf]
   );
-  const pagesTotal = progress?.pages_total || book?.page_count || progress?.total || 0;
+  const pagesTotal =
+    progress?.pages_total || book?.page_count || progress?.total || 0;
   const pagesDone = progress
-    ? (progress.pages_done ?? (progress.status === "done" ? pagesTotal : progress.done))
+    ? progress.pages_done ??
+      (progress.status === "done" ? pagesTotal : progress.done)
     : 0;
-  const canRetry = !!progress && (progress.errors > 0 || progress.status === "error");
+  const canRetry =
+    !!progress && (progress.errors > 0 || progress.status === "error");
 
   return (
     <div className="reader">
       <header className="reader-bar">
-        <Link to="/" className="btn">← Thư viện</Link>
-        <div className="reader-title" title={book?.title}>{book?.title ?? "…"}</div>
+        <SimpleTooltip content="Quay về danh sách sách">
+          <Link to="/" className="btn inline-flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Thư viện</span>
+          </Link>
+        </SimpleTooltip>
+
+        <div className="reader-title" title={book?.title}>
+          {book?.title ?? "…"}
+        </div>
 
         <div className="chip">
           {!progress ? null : progress.status === "parsing" ? (
@@ -290,16 +375,27 @@ export default function Reader({ bookId }: { bookId: number }) {
             <span className="err">{progress.error_msg}</span>
           ) : (
             <>
-              <span>{progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {pagesDone}/{pagesTotal}</span>
-              {progress.errors > 0 && <span className="err">{progress.errors} lỗi</span>}
+              <span>
+                {progress.status === "translating" ? "Đang dịch" : "Đã dịch"}{" "}
+                {pagesDone}/{pagesTotal}
+              </span>
+              {progress.errors > 0 && (
+                <span className="err">{progress.errors} lỗi</span>
+              )}
             </>
           )}
         </div>
 
         {canRetry && (
-          <button className="btn btn-primary" onClick={retryErrors}>
-            Dịch lại lỗi
-          </button>
+          <SimpleTooltip content="Thử dịch lại các câu hoặc trang bị lỗi">
+            <button
+              className="btn btn-primary inline-flex items-center gap-1"
+              onClick={retryErrors}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Dịch lại lỗi</span>
+            </button>
+          </SimpleTooltip>
         )}
 
         <div className="filler" />
@@ -313,15 +409,182 @@ export default function Reader({ bookId }: { bookId: number }) {
             value={jump}
             onChange={(e) => setJump(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && goTo(Number(jump))}
+            aria-label="Số trang hiện tại"
           />
           / {pdf?.numPages ?? "…"}
         </label>
+
+        {/* Zoom controls with Tooltips */}
         <div className="zoom">
-          <button className="btn" onClick={() => changeZoom(zoom - 0.1)}>−</button>
+          <SimpleTooltip content="Thu nhỏ tỉ lệ">
+            <button
+              className="btn h-7 w-7 p-0 flex items-center justify-center"
+              onClick={() => changeZoom(zoom - 0.1)}
+              aria-label="Thu nhỏ"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+          </SimpleTooltip>
+
           <span>{Math.round(zoom * 100)}%</span>
-          <button className="btn" onClick={() => changeZoom(zoom + 0.1)}>+</button>
-          <button className="btn" onClick={() => changeZoom((window.innerWidth - 32) / BASE_WIDTH)}>Vừa</button>
+
+          <SimpleTooltip content="Phóng to tỉ lệ">
+            <button
+              className="btn h-7 w-7 p-0 flex items-center justify-center"
+              onClick={() => changeZoom(zoom + 0.1)}
+              aria-label="Phóng to"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </SimpleTooltip>
+
+          <SimpleTooltip content="Vừa chiều rộng màn hình">
+            <button
+              className="btn h-7 w-7 p-0 flex items-center justify-center"
+              onClick={() =>
+                changeZoom((window.innerWidth - 32) / BASE_WIDTH)
+              }
+              aria-label="Vừa chiều rộng"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          </SimpleTooltip>
         </div>
+
+        {/* Quick Settings Popover */}
+        <Popover>
+          <SimpleTooltip content="Cài đặt hiển thị nhanh">
+            <PopoverTrigger asChild>
+              <button
+                className="btn h-7 w-7 p-0 flex items-center justify-center ml-1 text-[var(--muted)] hover:text-[var(--fg)]"
+                aria-label="Cài đặt nhanh"
+              >
+                <Sliders className="h-3.5 w-3.5" />
+              </button>
+            </PopoverTrigger>
+          </SimpleTooltip>
+          <PopoverContent className="w-80 p-4" align="end">
+            <div className="flex flex-col gap-3.5">
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                <span className="font-semibold text-sm">Cài đặt nhanh</span>
+                <Link
+                  to="/settings"
+                  className="text-xs text-[var(--accent)] hover:underline"
+                >
+                  Nâng cao →
+                </Link>
+              </div>
+
+              {/* Kiểu highlight */}
+              <div>
+                <div className="text-xs text-[var(--muted)] mb-1.5 font-medium">
+                  Kiểu đánh dấu khối:
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 text-xs">
+                  {[
+                    { id: "bar", label: "Vạch sáng" },
+                    { id: "background", label: "Tô nền" },
+                    { id: "border", label: "Khung" },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`px-2 py-1.5 rounded border text-center transition-colors cursor-pointer ${
+                        highlightStyle === item.id
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-white font-medium"
+                          : "border-[var(--border)] hover:bg-[var(--border)]"
+                      }`}
+                      onClick={() => setHighlightStyle(item.id as HighlightStyle)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Kiểu câu đối chiếu */}
+              <div>
+                <div className="text-xs text-[var(--muted)] mb-1.5 font-medium">
+                  Sáng câu đối chiếu:
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                  {[
+                    { id: "bracket", label: "Dấu ngoặc 「」" },
+                    { id: "block", label: "Khối phủ" },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`px-2 py-1.5 rounded border text-center transition-colors cursor-pointer ${
+                        sentenceStyle === item.id
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-white font-medium"
+                          : "border-[var(--border)] hover:bg-[var(--border)]"
+                      }`}
+                      onClick={() =>
+                        setSentenceStyle(item.id as SentenceHighlightStyle)
+                      }
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bảng màu */}
+              <div>
+                <div className="text-xs text-[var(--muted)] mb-2 font-medium">
+                  Màu sắc: <strong className="text-[var(--fg)]">{colorPreset.name}</strong>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  {COLOR_PRESETS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${
+                        highlightColor === c.id
+                          ? "border-[var(--fg)] scale-110 shadow-sm ring-2 ring-[var(--accent)]/30"
+                          : "border-transparent"
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      onClick={() => setHighlightColor(c.id)}
+                      title={c.name}
+                      aria-label={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Slider cỡ chữ popup */}
+              <div className="pt-1">
+                <div className="flex justify-between text-xs text-[var(--muted)] mb-2">
+                  <span className="font-medium">Cỡ chữ popup:</span>
+                  <span className="font-semibold text-[var(--fg)]">
+                    {popupFontSize}px
+                  </span>
+                </div>
+                <Slider
+                  min={12}
+                  max={24}
+                  step={1}
+                  value={[popupFontSize]}
+                  onValueChange={(val) => setPopupFontSize(val[0])}
+                  aria-label="Cỡ chữ popup"
+                />
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Shortcuts Help button */}
+        <SimpleTooltip content="Phím tắt & Hướng dẫn (?)">
+          <button
+            className="btn h-7 w-7 p-0 flex items-center justify-center text-[var(--muted)] hover:text-[var(--fg)]"
+            onClick={() => setShowShortcutsDialog(true)}
+            aria-label="Phím tắt trợ năng"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
+        </SimpleTooltip>
       </header>
 
       {error && <div className="notice err">{error}</div>}
@@ -362,6 +625,7 @@ export default function Reader({ bookId }: { bookId: number }) {
           ))}
       </main>
 
+      {/* Popup dịch chuyên biệt với @floating-ui/react */}
       {selected && selectedBlock && (
         <TranslationPopup
           block={selectedBlock}
@@ -371,6 +635,59 @@ export default function Reader({ bookId }: { bookId: number }) {
           onHoverSentence={onHoverSentence}
         />
       )}
+
+      {/* Dialog bảng phím tắt trợ năng */}
+      <Dialog
+        open={showShortcutsDialog}
+        onOpenChange={setShowShortcutsDialog}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bảng phím tắt & Hướng dẫn đọc</DialogTitle>
+            <DialogDescription>
+              Tối ưu thao tác đọc song ngữ bằng bàn phím theo chuẩn WAI-ARIA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-sm">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+              <span>Đoạn tiếp theo / Trước đó</span>
+              <div className="flex gap-1">
+                <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">
+                  ←
+                </kbd>
+                <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">
+                  →
+                </kbd>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+              <span>Đóng popup dịch hoặc hộp thoại</span>
+              <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">
+                Esc
+              </kbd>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+              <span>Mở bảng trợ giúp này</span>
+              <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">
+                ?
+              </kbd>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+              <span>Xem dịch thuật câu ngữ cảnh</span>
+              <span className="text-xs text-[var(--muted)]">Nhấp chuột vào khối văn bản</span>
+            </div>
+
+            <div className="flex items-center justify-between pb-1.5">
+              <span>Chiếu sáng câu đối chiếu gốc</span>
+              <span className="text-xs text-[var(--muted)]">Rê chuột vào câu trong popup</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
