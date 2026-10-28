@@ -1,8 +1,8 @@
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { memo, useEffect, useRef, useState } from "react";
-import type { Block, PageData } from "../types";
+import type { Block, PageData, SentenceHighlightStyle } from "../types";
 import BlockOverlay from "./BlockOverlay";
-import { rectsToUnifiedPolygonPath } from "../utils/geometry";
+import { rectsToSentenceBracketsPath, rectsToUnifiedPolygonPath } from "../utils/geometry";
 
 interface Props {
   pdf: PDFDocumentProxy;
@@ -12,6 +12,7 @@ interface Props {
   data?: PageData;
   selectedGroupId: number | null;
   activeSentenceHighlight?: [number, number, number, number][] | null;
+  sentenceHighlightStyle?: SentenceHighlightStyle;
   onAspect: (page: number, aspect: number) => void;
   onNear: (page: number, near: boolean) => void;
   onCenter: (page: number) => void;
@@ -20,7 +21,8 @@ interface Props {
 
 function PdfPage({
   pdf, pageNumber, cssWidth, aspect, data, selectedGroupId,
-  activeSentenceHighlight, onAspect, onNear, onCenter, onSelectBlock,
+  activeSentenceHighlight, sentenceHighlightStyle = "bracket",
+  onAspect, onNear, onCenter, onSelectBlock,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -114,10 +116,17 @@ function PdfPage({
               viewBox={`0 0 ${data.page.width} ${data.page.height}`}
               preserveAspectRatio="none"
             >
-              <path
-                d={rectsToUnifiedPolygonPath(activeSentenceHighlight)}
-                className="sentence-highlight-path"
-              />
+              {sentenceHighlightStyle === "bracket" ? (
+                <path
+                  d={rectsToSentenceBracketsPath(activeSentenceHighlight)}
+                  className="sentence-bracket-path"
+                />
+              ) : (
+                <path
+                  d={rectsToUnifiedPolygonPath(activeSentenceHighlight)}
+                  className="sentence-highlight-path"
+                />
+              )}
             </svg>
           )}
         </div>

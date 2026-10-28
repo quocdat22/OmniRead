@@ -167,3 +167,51 @@ export function rectsToUnifiedPolygonPath(
   cmds.push("Z");
   return cmds.join(" ");
 }
+
+/**
+ * Chuyển đổi danh sách rects của câu thành cặp dấu ngoặc góc 「 và 」:
+ * - Dấu ngoặc mở 「 ôm lấy góc trên-trái của từ đầu tiên trong câu.
+ * - Dấu ngoặc đóng 」 ôm lấy góc dưới-phải của từ cuối cùng trong câu.
+ */
+export function rectsToSentenceBracketsPath(
+  rects: [number, number, number, number][],
+  offset = 2.5
+): string {
+  if (!rects || rects.length === 0) return "";
+
+  const sorted = [...rects].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  const h1 = Math.max(8, first[3] - first[1]);
+  const armW1 = Math.max(5, Math.min(11, h1 * 0.45));
+  const armH1 = Math.max(6, Math.min(h1 * 0.75, 13));
+  const r1 = Math.min(1.8, armW1 / 2, armH1 / 2);
+
+  const xStart = Math.max(0, first[0] - offset);
+  const yStart = first[1];
+
+  // Dấu mở ngoặc góc 「 (từ chân cánh dọc đi lên, bo góc sang đầu cánh ngang)
+  const startCmd =
+    `M ${xStart.toFixed(2)} ${(yStart + armH1).toFixed(2)} ` +
+    `L ${xStart.toFixed(2)} ${(yStart + r1).toFixed(2)} ` +
+    `Q ${xStart.toFixed(2)} ${yStart.toFixed(2)} ${(xStart + r1).toFixed(2)} ${yStart.toFixed(2)} ` +
+    `L ${(xStart + armW1).toFixed(2)} ${yStart.toFixed(2)}`;
+
+  const h2 = Math.max(8, last[3] - last[1]);
+  const armW2 = Math.max(5, Math.min(11, h2 * 0.45));
+  const armH2 = Math.max(6, Math.min(h2 * 0.75, 13));
+  const r2 = Math.min(1.8, armW2 / 2, armH2 / 2);
+
+  const xEnd = last[2] + offset;
+  const yEnd = last[3];
+
+  // Dấu đóng ngoặc góc 」 (từ đầu cánh ngang chạy sang phải, bo góc lên đỉnh cánh dọc)
+  const endCmd =
+    `M ${(xEnd - armW2).toFixed(2)} ${yEnd.toFixed(2)} ` +
+    `L ${(xEnd - r2).toFixed(2)} ${yEnd.toFixed(2)} ` +
+    `Q ${xEnd.toFixed(2)} ${yEnd.toFixed(2)} ${xEnd.toFixed(2)} ${(yEnd - r2).toFixed(2)} ` +
+    `L ${xEnd.toFixed(2)} ${(yEnd - armH2).toFixed(2)}`;
+
+  return `${startCmd} ${endCmd}`;
+}

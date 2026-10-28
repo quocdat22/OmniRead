@@ -48,6 +48,7 @@ export default function Reader({ bookId }: { bookId: number }) {
 
   const {
     style: highlightStyle,
+    sentenceStyle,
     padding: highlightPadding,
     colorPreset,
   } = useHighlightStyle();
@@ -354,6 +355,7 @@ export default function Reader({ bookId }: { bookId: number }) {
               activeSentenceHighlight={
                 hoveredSentence?.page === n ? hoveredSentence.rects : null
               }
+              sentenceHighlightStyle={sentenceStyle}
               onAspect={onAspect}
               onNear={onNear}
               onCenter={onCenter}

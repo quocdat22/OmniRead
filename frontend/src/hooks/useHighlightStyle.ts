@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import type { HighlightColor, HighlightStyle } from "../types";
+import type { HighlightColor, HighlightStyle, SentenceHighlightStyle } from "../types";
 
 export const HIGHLIGHT_STORAGE_KEY = "omni_highlight_style";
 export const HIGHLIGHT_PADDING_KEY = "omni_highlight_padding";
 export const HIGHLIGHT_COLOR_KEY = "omni_highlight_color";
 export const HIGHLIGHT_FONT_SIZE_KEY = "omni_popup_font_size";
+export const SENTENCE_HIGHLIGHT_STORAGE_KEY = "omni_sentence_highlight_style";
 
 export const DEFAULT_HIGHLIGHT_STYLE: HighlightStyle = "bar";
+export const DEFAULT_SENTENCE_HIGHLIGHT_STYLE: SentenceHighlightStyle = "bracket";
 export const DEFAULT_HIGHLIGHT_PADDING = 4;
 export const DEFAULT_HIGHLIGHT_COLOR: HighlightColor = "blue";
 export const DEFAULT_POPUP_FONT_SIZE = 15;
@@ -88,6 +90,18 @@ export function getSavedHighlightStyle(): HighlightStyle {
   return DEFAULT_HIGHLIGHT_STYLE;
 }
 
+export function getSavedSentenceHighlightStyle(): SentenceHighlightStyle {
+  try {
+    const val = localStorage.getItem(SENTENCE_HIGHLIGHT_STORAGE_KEY);
+    if (val === "bracket" || val === "block") {
+      return val;
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_SENTENCE_HIGHLIGHT_STYLE;
+}
+
 export function getSavedHighlightPadding(): number {
   try {
     const val = localStorage.getItem(HIGHLIGHT_PADDING_KEY);
@@ -132,6 +146,7 @@ export function getSavedPopupFontSize(): number {
 
 export function useHighlightStyle() {
   const [style, setStyleState] = useState<HighlightStyle>(getSavedHighlightStyle);
+  const [sentenceStyle, setSentenceStyleState] = useState<SentenceHighlightStyle>(getSavedSentenceHighlightStyle);
   const [padding, setPaddingState] = useState<number>(getSavedHighlightPadding);
   const [color, setColorState] = useState<HighlightColor>(getSavedHighlightColor);
   const [fontSize, setFontSizeState] = useState<number>(getSavedPopupFontSize);
@@ -140,6 +155,16 @@ export function useHighlightStyle() {
     setStyleState(newStyle);
     try {
       localStorage.setItem(HIGHLIGHT_STORAGE_KEY, newStyle);
+      window.dispatchEvent(new Event("omni-highlight-style-changed"));
+    } catch {
+      // ignore
+    }
+  };
+
+  const setSentenceStyle = (newStyle: SentenceHighlightStyle) => {
+    setSentenceStyleState(newStyle);
+    try {
+      localStorage.setItem(SENTENCE_HIGHLIGHT_STORAGE_KEY, newStyle);
       window.dispatchEvent(new Event("omni-highlight-style-changed"));
     } catch {
       // ignore
@@ -179,6 +204,7 @@ export function useHighlightStyle() {
   useEffect(() => {
     const handleSync = () => {
       setStyleState(getSavedHighlightStyle());
+      setSentenceStyleState(getSavedSentenceHighlightStyle());
       setPaddingState(getSavedHighlightPadding());
       setColorState(getSavedHighlightColor());
       setFontSizeState(getSavedPopupFontSize());
@@ -196,11 +222,13 @@ export function useHighlightStyle() {
 
   return {
     style,
+    sentenceStyle,
     padding,
     color,
     colorPreset,
     fontSize,
     setStyle,
+    setSentenceStyle,
     setPadding,
     setColor,
     setFontSize,

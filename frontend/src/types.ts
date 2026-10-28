@@ -2,6 +2,7 @@ export type BookStatus = "parsing" | "translating" | "done" | "partial" | "error
 export type BlockStatus = "pending" | "translating" | "done" | "error";
 
 export type HighlightStyle = "bar" | "background" | "border";
+export type SentenceHighlightStyle = "bracket" | "block";
 export type HighlightColor = "blue" | "yellow" | "green" | "purple" | "orange" | "rose";
 
 export interface Book {

@@ -7,7 +7,7 @@ import {
   DEFAULT_POPUP_FONT_SIZE,
   useHighlightStyle,
 } from "../hooks/useHighlightStyle";
-import type { HighlightStyle } from "../types";
+import type { HighlightStyle, SentenceHighlightStyle } from "../types";
 
 interface OptionItem {
   id: HighlightStyle;
@@ -18,6 +18,19 @@ const OPTIONS: OptionItem[] = [
   { id: "bar", title: "Vạch sáng bên trái" },
   { id: "background", title: "Tô nền đoạn văn" },
   { id: "border", title: "Đóng khung viền" },
+];
+
+const SENTENCE_OPTIONS: { id: SentenceHighlightStyle; title: string; desc: string }[] = [
+  {
+    id: "bracket",
+    title: "Dấu ngoặc góc 「 … 」 (Khuyên dùng)",
+    desc: "Đánh dấu tinh tế ở đầu và cuối câu, giữ trang sách sạch sẽ và không che văn bản gốc.",
+  },
+  {
+    id: "block",
+    title: "Khối phủ (Block Highlight)",
+    desc: "Tô nền sáng và viền màu bao phủ toàn bộ câu văn tương ứng trong tài liệu gốc.",
+  },
 ];
 
 const SAMPLE_BLOCK = {
@@ -35,6 +48,8 @@ export default function Settings() {
   const {
     style: highlightStyle,
     setStyle: setHighlightStyle,
+    sentenceStyle,
+    setSentenceStyle,
     padding: highlightPadding,
     setPadding: setHighlightPadding,
     color: highlightColor,
@@ -93,14 +108,50 @@ export default function Settings() {
             })}
           </div>
 
-          {/* ---------------- Option màu sắc đánh dấu block ---------------- */}
+          {/* ---------------- Option Kiểu đối chiếu câu trong tài liệu gốc ---------------- */}
+          <div className="setting-color-row">
+            <div className="setting-color-header">
+              <span>Kiểu sáng câu đối chiếu gốc khi hover:</span>
+              <strong>{sentenceStyle === "bracket" ? "Dấu ngoặc góc 「 … 」" : "Khối phủ (Block)"}</strong>
+            </div>
+            <p style={{ margin: "4px 0 12px", fontSize: "13px", color: "var(--muted)" }}>
+              Chọn cách câu văn trong tài liệu gốc sáng lên khi bạn rê chuột vào từng câu dịch trong popup.
+            </p>
+            <div className="option-grid" style={{ marginBottom: 0 }}>
+              {SENTENCE_OPTIONS.map((opt) => {
+                const isSelected = sentenceStyle === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    className={`option-card${isSelected ? " active" : ""}`}
+                    onClick={() => setSentenceStyle(opt.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSentenceStyle(opt.id)}
+                  >
+                    <span className="option-radio">
+                      {isSelected && <span className="option-radio-dot" />}
+                    </span>
+                    <div>
+                      <h3 className="option-card-title">{opt.title}</h3>
+                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)", lineHeight: 1.4 }}>
+                        {opt.desc}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ---------------- Option màu sắc đánh dấu block & câu ---------------- */}
           <div className="setting-color-row">
             <div className="setting-color-header">
               <span>Màu sắc nổi bật (Highlight Color):</span>
               <strong>{colorPreset.name}</strong>
             </div>
             <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
-              Màu sắc đánh dấu khối văn bản. Vùng tô sáng câu đối chiếu sẽ tự động đồng bộ theo tông màu này và được thiết kế đậm nét hơn để phân biệt rõ câu và đoạn.
+              Màu sắc đánh dấu khối và ký hiệu đối chiếu câu. Ký hiệu câu sẽ đồng bộ theo tông màu này để tạo sự thống nhất.
             </p>
             <div className="color-swatches">
               {COLOR_PRESETS.map((col) => {
@@ -211,14 +262,29 @@ export default function Settings() {
               }
             >
               <div className="preview-block selected">
-                {SAMPLE_BLOCK.originalSentences.map((s, idx) => (
-                  <span
-                    key={idx}
-                    className={previewHoveredSentence === idx ? "preview-sentence-highlight" : ""}
-                  >
-                    {s}{" "}
-                  </span>
-                ))}
+                {SAMPLE_BLOCK.originalSentences.map((s, idx) => {
+                  const isHovered = previewHoveredSentence === idx;
+                  if (sentenceStyle === "bracket") {
+                    return (
+                      <span
+                        key={idx}
+                        className={`preview-sentence-bracket${isHovered ? " active" : ""}`}
+                      >
+                        {isHovered && <span className="preview-bracket-mark bracket-start">「</span>}
+                        {s}
+                        {isHovered && <span className="preview-bracket-mark bracket-end">」</span>}{" "}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span
+                      key={idx}
+                      className={isHovered ? "preview-sentence-highlight" : ""}
+                    >
+                      {s}{" "}
+                    </span>
+                  );
+                })}
               </div>
 
               <div className="preview-popup-wrapper">

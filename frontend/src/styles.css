@@ -265,6 +265,24 @@ body {
   }
 }
 
+/* Corner Brackets Style 「 ... 」 for Sentence Highlight */
+.sentence-bracket-path {
+  fill: none;
+  stroke: var(--sentence-highlight-color, #1d4ed8);
+  stroke-width: 2.4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 3px rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.45));
+}
+
+@media (prefers-color-scheme: dark) {
+  .sentence-bracket-path {
+    stroke-width: 2.6px;
+    filter: drop-shadow(0 1px 5px rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.7));
+  }
+}
+
 .sentence-highlight {
   position: absolute;
   pointer-events: none;
@@ -312,6 +330,35 @@ body {
     background-color: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.28);
   }
 }
+
+.preview-sentence-bracket {
+  display: inline;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.preview-sentence-bracket.active {
+  color: var(--fg);
+  font-weight: 500;
+}
+.preview-bracket-mark {
+  color: var(--sentence-highlight-color, #1d4ed8);
+  font-weight: 800;
+  font-size: 1.25em;
+  line-height: 0;
+  vertical-align: baseline;
+  user-select: none;
+  display: inline-block;
+  animation: sentence-fade-in 0.12s ease-out forwards;
+}
+.preview-bracket-mark.bracket-start {
+  margin-right: 1.5px;
+  transform: translateY(-1px);
+}
+.preview-bracket-mark.bracket-end {
+  margin-left: 1.5px;
+  transform: translateY(2px);
+}
+
 @media (prefers-color-scheme: dark) {
   .popup-body [data-color] {
     filter: brightness(1.35) saturate(1.2);
@@ -657,19 +704,4 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-.preview-popup {
-  display: inline-block;
-  max-width: 540px;
-  background: var(--surface);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 12px 14px;
-  font-family: system-ui, sans-serif;
-  font-size: 13.5px;
-}
-.preview-popup-body {
-  line-height: 1.6;
 }
