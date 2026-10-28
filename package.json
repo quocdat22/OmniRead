@@ -4,6 +4,7 @@
   "private": true,
   "description": "Bilingual PDF reader with DeepSeek AI sentence-level translation and interactive side-by-side reading",
   "scripts": {
+    "setup": "./setup.sh",
     "dev": "concurrently -n \"backend,frontend\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
     "dev:frontend": "cd frontend && npm run dev",
