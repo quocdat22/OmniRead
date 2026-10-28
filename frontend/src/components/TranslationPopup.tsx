@@ -2,6 +2,7 @@ import {
   autoUpdate, flip, FloatingPortal, offset, shift, size,
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
+import { AlertCircle, Loader2, Split } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block, SentenceInfo } from "../types";
@@ -199,8 +200,9 @@ export default function TranslationPopup({
       >
         <div className="p-3.5 overflow-auto leading-relaxed" style={{ fontSize: `${computedFontSize}px` }}>
           {block.group_size > 1 && (
-            <div className="text-[11px] text-muted mb-1 font-medium">
-              Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})
+            <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5 font-medium">
+              <Split className="h-3.5 w-3.5 shrink-0" />
+              <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
             </div>
           )}
           {ready ? (
@@ -217,9 +219,15 @@ export default function TranslationPopup({
               ))}
             </p>
           ) : block.status === "error" ? (
-            <p className="m-0 text-danger text-sm">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
+            <p className="m-0 text-danger text-sm flex items-center gap-1.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+              <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
+            </p>
           ) : (
-            <p className="m-0 text-muted text-sm">Đang dịch… bản dịch sẽ tự hiện khi xong.</p>
+            <p className="m-0 text-muted text-sm flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
+              <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
+            </p>
           )}
         </div>
       </div>

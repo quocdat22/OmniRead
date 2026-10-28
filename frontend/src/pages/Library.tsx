@@ -1,26 +1,97 @@
+import {
+  AlertCircle,
+  AlertTriangle,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  CircleDot,
+  Loader2,
+  MoreVertical,
+  Plus,
+  RefreshCw,
+  Settings as SettingsIcon,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Book } from "../types";
 
-function statusText(b: Book): string {
-  const totalPages = b.pages_total ?? b.page_count;
-  const donePages = b.pages_done ?? (b.status === "done" ? totalPages : 0);
-  switch (b.status) {
-    case "parsing": return "Đang phân tích PDF…";
-    case "translating": return `Đang dịch ${donePages}/${totalPages}`;
-    case "done": return `Đã dịch xong (${totalPages} trang)`;
-    case "partial": return `Xong, ${b.errors} đoạn lỗi`;
-    case "error": return `Lỗi: ${b.error_msg ?? "không rõ"}`;
+function BookStatusIndicator({ book }: { book: Book }) {
+  const totalPages = book.pages_total ?? book.page_count;
+  const donePages =
+    book.pages_done ?? (book.status === "done" ? totalPages : 0);
+
+  switch (book.status) {
+    case "parsing":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-accent">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Đang phân tích PDF…</span>
+        </span>
+      );
+    case "translating":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-accent">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Đang dịch {donePages}/{totalPages}</span>
+        </span>
+      );
+    case "done":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Đã dịch xong ({totalPages} trang)</span>
+        </span>
+      );
+    case "partial":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Xong, {book.errors} đoạn lỗi</span>
+        </span>
+      );
+    case "error":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-danger">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Lỗi: {book.error_msg ?? "không rõ"}</span>
+        </span>
+      );
   }
 }
 
 export default function Library() {
   const [books, setBooks] = useState<Book[]>([]);
   const [message, setMessage] = useState<string | null>(null);
-  const [health, setHealth] = useState<{ ok: boolean; translator_configured: boolean } | null>(null);
+  const [health, setHealth] = useState<{
+    ok: boolean;
+    translator_configured: boolean;
+  } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -41,7 +112,9 @@ export default function Library() {
   useEffect(() => void load(), [load]);
 
   // Poll khi còn sách đang xử lý.
-  const active = books.some((b) => b.status === "parsing" || b.status === "translating");
+  const active = books.some(
+    (b) => b.status === "parsing" || b.status === "translating"
+  );
   useEffect(() => {
     if (!active) return;
     const t = setInterval(load, 2000);
@@ -69,10 +142,18 @@ export default function Library() {
     }
   }
 
-  async function remove(b: Book) {
-    if (!confirm(`Xóa "${b.title}" và toàn bộ bản dịch?`)) return;
-    await api.deleteBook(b.id);
-    await load();
+  async function confirmDelete() {
+    if (!bookToDelete) return;
+    setDeleting(true);
+    try {
+      await api.deleteBook(bookToDelete.id);
+      setBookToDelete(null);
+      await load();
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function retry(b: Book) {
@@ -111,61 +192,87 @@ export default function Library() {
         <div className="flex items-center gap-2.5 flex-wrap">
           {health && (
             <div className="flex items-center gap-2">
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                title="Backend đã sẵn sàng"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                API Online
-              </span>
+              <SimpleTooltip content="Backend FastAPI đang trực tuyến">
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                >
+                  <CircleDot className="h-3.5 w-3.5" />
+                  API Online
+                </span>
+              </SimpleTooltip>
               {health.translator_configured ? (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                  title="DeepSeek API Key đã cấu hình"
-                >
-                  ✓ DeepSeek OK
-                </span>
+                <SimpleTooltip content="Mô hình DeepSeek AI đã sẵn sàng dịch thuật ngữ cảnh">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    DeepSeek OK
+                  </span>
+                </SimpleTooltip>
               ) : (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                  title="Chưa có DEEPSEEK_API_KEY trong .env"
-                >
-                  ⚠️ Chưa cấu hình DeepSeek
-                </span>
+                <SimpleTooltip content="Chưa cấu hình DEEPSEEK_API_KEY trong file backend/.env">
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Chưa cấu hình DeepSeek
+                  </span>
+                </SimpleTooltip>
               )}
             </div>
           )}
 
           <ThemeToggle />
 
-          <Link
-            to="/settings"
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
-            title="Cài đặt hiển thị & giao diện"
-          >
-            ⚙️ Cài đặt
-          </Link>
+          <SimpleTooltip content="Tùy biến hiển thị highlight, padding, cỡ chữ">
+            <Link
+              to="/settings"
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              <span>Cài đặt</span>
+            </Link>
+          </SimpleTooltip>
         </div>
       </div>
 
       {health && !health.translator_configured && (
-        <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-sm leading-relaxed">
-          ⚠️ <strong>DeepSeek API chưa được cấu hình:</strong> Bạn vẫn có thể tải sách và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu hình <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">DEEPSEEK_API_KEY</code> trong file <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">backend/.env</code>.
+        <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-sm leading-relaxed flex items-start gap-2.5">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <strong>DeepSeek API chưa được cấu hình:</strong> Bạn vẫn có thể tải sách
+            và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu
+            hình <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">DEEPSEEK_API_KEY</code> trong file <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">backend/.env</code>.
+          </div>
         </div>
       )}
 
-      {/* Upload Action Card */}
-      <div className="bg-surface border border-border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all">
+      {/* Upload Action / Dropzone Card */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          void upload(e.dataTransfer.files[0]);
+        }}
+        className={`bg-surface border-2 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all ${
+          dragOver ? "border-accent bg-accent/5" : "border-border"
+        }`}
+      >
         <div className="flex items-start sm:items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 text-accent flex items-center justify-center text-2xl shrink-0">
-            📑
+          <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 text-accent flex items-center justify-center shrink-0">
+            <UploadCloud className="h-6 w-6" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-foreground">
               Thêm tài liệu hoặc sách mới
             </h2>
             <p className="text-xs sm:text-sm text-muted mt-0.5">
-              Hỗ trợ định dạng PDF (.pdf). Hệ thống sẽ tự động trích xuất các đoạn và câu để dịch song ngữ.
+              Hỗ trợ định dạng PDF (.pdf). Hệ thống sẽ tự động trích xuất các đoạn và câu để dịch song ngữ. Kéo thả file vào đây hoặc bấm nút chọn file.
             </p>
           </div>
         </div>
@@ -182,30 +289,12 @@ export default function Library() {
         >
           {uploading ? (
             <>
-              <svg
-                className="animate-spin -ml-1 mr-1 h-4 w-4 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                />
-              </svg>
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
               <span>Đang tải lên…</span>
             </>
           ) : (
             <>
-              <span className="text-base leading-none">➕</span>
+              <Plus className="h-4 w-4" />
               <span>Chọn file PDF</span>
             </>
           )}
@@ -213,8 +302,9 @@ export default function Library() {
       </div>
 
       {message && (
-        <div className="mt-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm">
-          {message}
+        <div className="mt-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+          <span>{message}</span>
         </div>
       )}
 
@@ -229,12 +319,14 @@ export default function Library() {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
           {books.map((b) => {
             const totalPages = b.pages_total ?? b.page_count;
-            const donePages = b.pages_done ?? (b.status === "done" ? totalPages : 0);
+            const donePages =
+              b.pages_done ?? (b.status === "done" ? totalPages : 0);
             const pct = totalPages
               ? Math.round((donePages / totalPages) * 100)
               : b.total
               ? Math.round((b.done / b.total) * 100)
               : 0;
+
             return (
               <div
                 key={b.id}
@@ -243,9 +335,9 @@ export default function Library() {
                 <div className="font-semibold text-foreground truncate" title={b.filename}>
                   {b.title}
                 </div>
-                <div className="text-xs text-muted">
-                  {b.page_count ? `${b.page_count} trang · ` : ""}
-                  {statusText(b)}
+                <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+                  {b.page_count ? <span>{b.page_count} trang ·</span> : null}
+                  <BookStatusIndicator book={b} />
                 </div>
                 <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
                   <div
@@ -255,32 +347,63 @@ export default function Library() {
                 </div>
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
                   {b.status === "parsing" ? (
-                    <span className="text-xs text-muted">Chờ phân tích xong…</span>
+                    <span className="text-xs text-muted inline-flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Chờ phân tích…</span>
+                    </span>
                   ) : (
                     <Link
                       to={`/read/${b.id}`}
-                      className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
                     >
-                      Đọc sách
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span>Đọc</span>
                     </Link>
                   )}
                   {(b.status === "partial" || b.status === "error") && (
-                    <button
-                      type="button"
-                      onClick={() => retry(b)}
-                      className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
-                    >
-                      Thử lại
-                    </button>
+                    <SimpleTooltip content="Thử dịch lại các đoạn văn bản gặp sự cố">
+                      <button
+                        type="button"
+                        onClick={() => retry(b)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        <span>Thử lại</span>
+                      </button>
+                    </SimpleTooltip>
                   )}
                   <span className="flex-1" />
-                  <button
-                    type="button"
-                    onClick={() => remove(b)}
-                    className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg text-danger hover:bg-danger/10 border border-transparent hover:border-danger/30 transition-colors"
-                  >
-                    Xóa
-                  </button>
+
+                  {/* Dropdown Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="p-1.5 h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
+                        aria-label="Thao tác khác"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => navigate(`/read/${b.id}`)}>
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        <span>Mở sách</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => retry(b)}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <span>Dịch lại các đoạn lỗi</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => setBookToDelete(b)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Xóa sách & bản dịch</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
@@ -291,20 +414,51 @@ export default function Library() {
               <div className="text-4xl mb-2">📚</div>
               <h3 className="font-medium text-foreground text-sm">Chưa có cuốn sách nào</h3>
               <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-                Bấm nút "Chọn file PDF" ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!
+                Bấm nút &quot;Chọn file PDF&quot; ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!
               </p>
               <button
                 type="button"
                 onClick={triggerFileSelect}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent-hover transition-colors"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
               >
-                <span>➕</span>
+                <Plus className="h-4 w-4" />
                 <span>Chọn file PDF ngay</span>
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Dialog xác nhận xóa sách (Thay thế window.confirm hoàn toàn) */}
+      <Dialog
+        open={!!bookToDelete}
+        onOpenChange={(open) => !open && setBookToDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa tài liệu</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa &quot;{bookToDelete?.title}&quot; cùng
+              toàn bộ dữ liệu bản dịch và cấu trúc đoạn câu không? Hành động này
+              không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={deleting}>
+                Hủy
+              </Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Đang xóa…" : "Xóa tài liệu"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
