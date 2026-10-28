@@ -2,6 +2,7 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { memo, useEffect, useRef, useState } from "react";
 import type { Block, PageData } from "../types";
 import BlockOverlay from "./BlockOverlay";
+import { rectsToUnifiedPolygonPath } from "../utils/geometry";
 
 interface Props {
   pdf: PDFDocumentProxy;
@@ -107,19 +108,18 @@ function PdfPage({
               onSelect={onSelectBlock}
             />
           ))}
-          {activeSentenceHighlight &&
-            activeSentenceHighlight.map((rect, idx) => (
-              <div
-                key={`sent-hl-${idx}`}
-                className="sentence-highlight"
-                style={{
-                  left: `${(rect[0] / data.page.width) * 100}%`,
-                  top: `${(rect[1] / data.page.height) * 100}%`,
-                  width: `${((rect[2] - rect[0]) / data.page.width) * 100}%`,
-                  height: `${((rect[3] - rect[1]) / data.page.height) * 100}%`,
-                }}
+          {activeSentenceHighlight && activeSentenceHighlight.length > 0 && (
+            <svg
+              className="sentence-highlight-svg"
+              viewBox={`0 0 ${data.page.width} ${data.page.height}`}
+              preserveAspectRatio="none"
+            >
+              <path
+                d={rectsToUnifiedPolygonPath(activeSentenceHighlight)}
+                className="sentence-highlight-path"
               />
-            ))}
+            </svg>
+          )}
         </div>
       )}
     </div>
