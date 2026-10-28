@@ -2,6 +2,7 @@ import {
   autoUpdate, flip, FloatingPortal, offset, shift, size,
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
+import { AlertCircle, Loader2, Split } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block, SentenceInfo } from "../types";
@@ -186,8 +187,9 @@ export default function TranslationPopup({
       <div ref={refs.setFloating} style={floatingStyles} className="popup" {...getFloatingProps()}>
         <div className="popup-body" style={{ fontSize: `${computedFontSize}px` }}>
           {block.group_size > 1 && (
-            <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>
-              Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})
+            <div className="flex items-center gap-1" style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>
+              <Split className="h-3 w-3 shrink-0" />
+              <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
             </div>
           )}
           {ready ? (
@@ -204,9 +206,15 @@ export default function TranslationPopup({
               ))}
             </p>
           ) : block.status === "error" ? (
-            <p className="err">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
+            <p className="err flex items-center gap-1.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+              <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
+            </p>
           ) : (
-            <p className="muted">Đang dịch… bản dịch sẽ tự hiện khi xong.</p>
+            <p className="muted flex items-center gap-1.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-[var(--accent)]" />
+              <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
+            </p>
           )}
         </div>
       </div>

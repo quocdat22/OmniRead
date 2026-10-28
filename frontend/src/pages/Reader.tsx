@@ -1,6 +1,11 @@
 import {
+  AlertCircle,
   ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
   HelpCircle,
+  Keyboard,
+  Loader2,
   Maximize2,
   Minus,
   Plus,
@@ -368,19 +373,33 @@ export default function Reader({ bookId }: { bookId: number }) {
           {book?.title ?? "…"}
         </div>
 
-        <div className="chip">
+        <div className="chip inline-flex items-center gap-1.5">
           {!progress ? null : progress.status === "parsing" ? (
-            "Đang phân tích PDF…"
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)] shrink-0" />
+              <span>Đang phân tích PDF…</span>
+            </>
           ) : progress.status === "error" ? (
-            <span className="err">{progress.error_msg}</span>
+            <>
+              <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+              <span className="err">{progress.error_msg}</span>
+            </>
           ) : (
             <>
+              {progress.status === "translating" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent)] shrink-0" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              )}
               <span>
                 {progress.status === "translating" ? "Đang dịch" : "Đã dịch"}{" "}
                 {pagesDone}/{pagesTotal}
               </span>
               {progress.errors > 0 && (
-                <span className="err">{progress.errors} lỗi</span>
+                <span className="err inline-flex items-center gap-1 ml-1 text-red-500">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{progress.errors} lỗi</span>
+                </span>
               )}
             </>
           )}
@@ -469,9 +488,10 @@ export default function Reader({ bookId }: { bookId: number }) {
                 <span className="font-semibold text-sm">Cài đặt nhanh</span>
                 <Link
                   to="/settings"
-                  className="text-xs text-[var(--accent)] hover:underline"
+                  className="text-xs text-[var(--accent)] hover:underline inline-flex items-center"
                 >
-                  Nâng cao →
+                  <span>Nâng cao</span>
+                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                 </Link>
               </div>
 
@@ -587,8 +607,18 @@ export default function Reader({ bookId }: { bookId: number }) {
         </SimpleTooltip>
       </header>
 
-      {error && <div className="notice err">{error}</div>}
-      {!pdf && !error && <div className="notice">Đang tải PDF…</div>}
+      {error && (
+        <div className="notice err flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+          <span>{error}</span>
+        </div>
+      )}
+      {!pdf && !error && (
+        <div className="notice flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0 text-[var(--accent)]" />
+          <span>Đang tải PDF…</span>
+        </div>
+      )}
 
       <main
         className="pages"
@@ -643,7 +673,10 @@ export default function Reader({ bookId }: { bookId: number }) {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Bảng phím tắt & Hướng dẫn đọc</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Keyboard className="h-5 w-5 text-[var(--accent)] shrink-0" />
+              <span>Bảng phím tắt & Hướng dẫn đọc</span>
+            </DialogTitle>
             <DialogDescription>
               Tối ưu thao tác đọc song ngữ bằng bàn phím theo chuẩn WAI-ARIA.
             </DialogDescription>

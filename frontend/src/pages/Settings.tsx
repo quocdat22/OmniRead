@@ -1,3 +1,12 @@
+import {
+  ArrowLeft,
+  Bot,
+  Check,
+  Keyboard,
+  KeyRound,
+  Layers,
+  Palette,
+} from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -70,8 +79,9 @@ export default function Settings() {
     <div className="settings">
       <div className="settings-header">
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Link to="/" className="btn">
-            ← Thư viện
+          <Link to="/" className="btn inline-flex items-center gap-1.5">
+            <ArrowLeft className="h-4 w-4" />
+            <span>Thư viện</span>
           </Link>
           <div>
             <h1>Cài đặt</h1>
@@ -82,9 +92,18 @@ export default function Settings() {
 
       <Tabs defaultValue="appearance" className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="appearance">Giao diện & Highlight</TabsTrigger>
-          <TabsTrigger value="translation">Dịch thuật & AI</TabsTrigger>
-          <TabsTrigger value="shortcuts">Phím tắt & Trợ năng</TabsTrigger>
+          <TabsTrigger value="appearance" className="inline-flex items-center gap-1.5">
+            <Palette className="h-4 w-4" />
+            <span>Giao diện & Highlight</span>
+          </TabsTrigger>
+          <TabsTrigger value="translation" className="inline-flex items-center gap-1.5">
+            <Bot className="h-4 w-4" />
+            <span>Dịch thuật & AI</span>
+          </TabsTrigger>
+          <TabsTrigger value="shortcuts" className="inline-flex items-center gap-1.5">
+            <Keyboard className="h-4 w-4" />
+            <span>Phím tắt & Trợ năng</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Appearance */}
@@ -178,7 +197,11 @@ export default function Settings() {
                           aria-label={`Màu: ${col.name}`}
                         >
                           <span className="color-swatch-circle" />
-                          {isSelected && <span className="color-swatch-check">✓</span>}
+                          {isSelected && (
+                            <span className="color-swatch-check">
+                              <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                            </span>
+                          )}
                         </button>
                       </SimpleTooltip>
                     );
@@ -333,7 +356,10 @@ export default function Settings() {
 
               <div className="space-y-4 text-sm text-[var(--fg)]">
                 <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
-                  <h3 className="font-semibold mb-2">1. Khóa bảo mật DeepSeek API Key</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <KeyRound className="h-4 w-4 text-[var(--accent)] shrink-0" />
+                    <h3 className="font-semibold">1. Khóa bảo mật DeepSeek API Key</h3>
+                  </div>
                   <p className="text-[var(--muted)] mb-3">
                     OmniRead sử dụng mô hình DeepSeek qua endpoint OpenAI-compatible để dịch thuật câu văn chính xác, tự nhiên theo ngữ cảnh học thuật và sách chuyên khảo.
                   </p>
@@ -346,7 +372,10 @@ export default function Settings() {
                 </div>
 
                 <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
-                  <h3 className="font-semibold mb-2">2. Cơ chế đối chiếu câu chuẩn xác (@floating-ui)</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Layers className="h-4 w-4 text-[var(--accent)] shrink-0" />
+                    <h3 className="font-semibold">2. Cơ chế đối chiếu câu chuẩn xác (@floating-ui)</h3>
+                  </div>
                   <p className="text-[var(--muted)]">
                     Hệ thống tự động phân tách câu văn bản gốc và câu bản dịch tương ứng. Khi bạn rê chuột vào bất kỳ câu dịch nào trong popup, văn bản gốc trên trang sách sẽ được chiếu sáng ngay lập tức.
                   </p>
@@ -361,7 +390,10 @@ export default function Settings() {
           <div className="settings-group">
             <div className="settings-card">
               <div className="settings-card-header">
-                <h2>Phím tắt & Khả năng truy cập (Accessibility)</h2>
+                <div className="flex items-center gap-2">
+                  <Keyboard className="h-5 w-5 text-[var(--accent)] shrink-0" />
+                  <h2>Phím tắt & Khả năng truy cập (Accessibility)</h2>
+                </div>
                 <p>Điều hướng nhanh chóng bằng bàn phím theo tiêu chuẩn WAI-ARIA.</p>
               </div>
 

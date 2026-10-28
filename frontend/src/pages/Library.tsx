@@ -1,9 +1,16 @@
 import {
+  AlertCircle,
+  AlertTriangle,
   BookOpen,
+  Check,
+  CheckCircle2,
+  CircleDot,
+  Loader2,
   MoreVertical,
   RefreshCw,
   Settings as SettingsIcon,
   Trash2,
+  UploadCloud,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -28,20 +35,47 @@ import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
 import type { Book } from "../types";
 
-function statusText(b: Book): string {
-  const totalPages = b.pages_total ?? b.page_count;
-  const donePages = b.pages_done ?? (b.status === "done" ? totalPages : 0);
-  switch (b.status) {
+function BookStatusIndicator({ book }: { book: Book }) {
+  const totalPages = book.pages_total ?? book.page_count;
+  const donePages =
+    book.pages_done ?? (book.status === "done" ? totalPages : 0);
+
+  switch (book.status) {
     case "parsing":
-      return "Đang phân tích PDF…";
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[var(--accent)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Đang phân tích PDF…</span>
+        </span>
+      );
     case "translating":
-      return `Đang dịch ${donePages}/${totalPages}`;
+      return (
+        <span className="inline-flex items-center gap-1.5 text-[var(--accent)]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Đang dịch {donePages}/{totalPages}</span>
+        </span>
+      );
     case "done":
-      return `Đã dịch xong (${totalPages} trang)`;
+      return (
+        <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Đã dịch xong ({totalPages} trang)</span>
+        </span>
+      );
     case "partial":
-      return `Xong, ${b.errors} đoạn lỗi`;
+      return (
+        <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Xong, {book.errors} đoạn lỗi</span>
+        </span>
+      );
     case "error":
-      return `Lỗi: ${b.error_msg ?? "không rõ"}`;
+      return (
+        <span className="inline-flex items-center gap-1.5 text-red-500">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Lỗi: {book.error_msg ?? "không rõ"}</span>
+        </span>
+      );
   }
 }
 
@@ -131,15 +165,24 @@ export default function Library() {
           {health && (
             <div className="status-indicators">
               <SimpleTooltip content="Backend FastAPI đang trực tuyến">
-                <span className="status-badge live">● API Online</span>
+                <span className="status-badge live">
+                  <CircleDot className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>API Online</span>
+                </span>
               </SimpleTooltip>
               {health.translator_configured ? (
                 <SimpleTooltip content="Mô hình DeepSeek AI đã sẵn sàng dịch thuật ngữ cảnh">
-                  <span className="status-badge success">✓ DeepSeek OK</span>
+                  <span className="status-badge success">
+                    <Check className="h-3.5 w-3.5" />
+                    <span>DeepSeek OK</span>
+                  </span>
                 </SimpleTooltip>
               ) : (
                 <SimpleTooltip content="Chưa cấu hình DEEPSEEK_API_KEY trong file backend/.env">
-                  <span className="status-badge warn">⚠️ Chưa cấu hình DeepSeek</span>
+                  <span className="status-badge warn">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>Chưa cấu hình DeepSeek</span>
+                  </span>
                 </SimpleTooltip>
               )}
             </div>
@@ -154,10 +197,13 @@ export default function Library() {
       </div>
 
       {health && !health.translator_configured && (
-        <div className="notice warn">
-          ⚠️ <strong>DeepSeek API chưa được cấu hình:</strong> Bạn vẫn có thể tải sách
-          và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu
-          hình <code>DEEPSEEK_API_KEY</code> trong file <code>backend/.env</code>.
+        <div className="notice warn flex items-start gap-2.5">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <strong>DeepSeek API chưa được cấu hình:</strong> Bạn vẫn có thể tải sách
+            và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu
+            hình <code>DEEPSEEK_API_KEY</code> trong file <code>backend/.env</code>.
+          </div>
         </div>
       )}
 
@@ -183,12 +229,27 @@ export default function Library() {
             e.target.value = "";
           }}
         />
-        {uploading
-          ? "Đang tải lên…"
-          : "Kéo thả file PDF vào đây hoặc bấm để chọn (PDF text-based)"}
+        <div className="flex flex-col items-center justify-center gap-2 py-1">
+          {uploading ? (
+            <>
+              <Loader2 className="h-7 w-7 animate-spin text-[var(--accent)]" />
+              <span>Đang tải lên…</span>
+            </>
+          ) : (
+            <>
+              <UploadCloud className="h-7 w-7 text-[var(--muted)]" />
+              <span>Kéo thả file PDF vào đây hoặc bấm để chọn (PDF text-based)</span>
+            </>
+          )}
+        </div>
       </label>
 
-      {message && <div className="notice err">{message}</div>}
+      {message && (
+        <div className="notice err flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+          <span>{message}</span>
+        </div>
+      )}
 
       <div className="cards">
         {books.map((b) => {
@@ -206,9 +267,9 @@ export default function Library() {
               <div className="card-title" title={b.filename}>
                 {b.title}
               </div>
-              <div className="muted">
-                {b.page_count ? `${b.page_count} trang · ` : ""}
-                {statusText(b)}
+              <div className="muted flex items-center gap-1.5 flex-wrap">
+                {b.page_count ? <span>{b.page_count} trang ·</span> : null}
+                <BookStatusIndicator book={b} />
               </div>
               <div className="bar">
                 <i style={{ width: `${pct}%` }} />
@@ -216,7 +277,10 @@ export default function Library() {
 
               <div className="card-actions items-center">
                 {b.status === "parsing" ? (
-                  <span className="muted">Chờ phân tích xong…</span>
+                  <span className="muted inline-flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Chờ phân tích xong…</span>
+                  </span>
                 ) : (
                   <Link
                     className="btn primary inline-flex items-center gap-1.5"
