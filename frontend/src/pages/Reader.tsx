@@ -40,6 +40,7 @@ import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
 import PdfPage from "../components/PdfPage";
 import ThemeToggle from "../components/ThemeToggle";
+import { AnimatePresence } from "motion/react";
 import TranslationPopup from "../components/TranslationPopup";
 import {
   COLOR_PRESETS,
@@ -705,16 +706,19 @@ export default function Reader({ bookId }: { bookId: number }) {
           ))}
       </main>
 
-      {/* Popup dịch với @floating-ui/react */}
-      {selected && selectedBlock && (
-        <TranslationPopup
-          block={selectedBlock}
-          reference={selected.el}
-          pageWidth={pages[selected.page]?.page.width}
-          onClose={closePopup}
-          onHoverSentence={onHoverSentence}
-        />
-      )}
+      {/* Popup dịch với @floating-ui/react & motion */}
+      <AnimatePresence>
+        {selected && selectedBlock && (
+          <TranslationPopup
+            key={`popup-${selected.page}-${selected.blockId}`}
+            block={selectedBlock}
+            reference={selected.el}
+            pageWidth={pages[selected.page]?.page.width}
+            onClose={closePopup}
+            onHoverSentence={onHoverSentence}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Dialog bảng phím tắt trợ năng */}
       <Dialog
