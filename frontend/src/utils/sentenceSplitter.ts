@@ -36,13 +36,15 @@ export function splitSentencesHtml(text: string): string[] {
       if (lastWord.length === 1 && /^[a-zA-Z]$/.test(lastWord)) {
         continue;
       }
-      // Từ tiếp theo bắt đầu bằng chữ thường và không phải kết thúc bằng ! hoặc ?
-      if (
-        i + 2 < splits.length &&
-        /^[a-zà-ỹ]/.test(splits[i + 2].trim()) &&
-        !/[!?]/.test(delim)
-      ) {
-        continue;
+      // Từ tiếp theo bắt đầu bằng chữ thường (Unicode lowercase \p{Ll}) và không phải kết thúc bằng ! hoặc ?
+      if (i + 2 < splits.length) {
+        const nextClean = splits[i + 2]
+          .replace(/<[^>]+>/g, "")
+          .replace(/^["'“”‘’(\[]+/, "")
+          .trim();
+        if (nextClean && /^\p{Ll}/u.test(nextClean) && !/[!?]/.test(delim)) {
+          continue;
+        }
       }
     }
 
@@ -62,17 +64,17 @@ export function splitSentencesHtml(text: string): string[] {
 
   // Cân bằng các thẻ HTML giữa các câu (đóng thẻ ở câu trước, mở lại ở câu sau)
   const result: string[] = [];
-  let activeTags: { name: string; fullTag: string }[] = [];
+  let openTags: { name: string; fullTag: string }[] = [];
 
   for (const raw of rawSentences) {
-    const prefix = activeTags.map((t) => t.fullTag).join("");
-    const s = prefix + raw;
+    const prefix = openTags.map((t) => t.fullTag).join("");
 
+    // Quét riêng chuỗi raw hiện tại để cập nhật stack thẻ mở (tránh lặp lại thẻ trong prefix)
     const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*?)?>/g;
     let match: RegExpExecArray | null;
-    const currentStack = [...activeTags];
+    const currentStack = [...openTags];
 
-    while ((match = tagRegex.exec(s)) !== null) {
+    while ((match = tagRegex.exec(raw)) !== null) {
       const fullTag = match[0];
       const tagName = match[1].toLowerCase();
 
@@ -91,8 +93,8 @@ export function splitSentencesHtml(text: string): string[] {
       suffix += `</${currentStack[j].name}>`;
     }
 
-    result.push(s + suffix);
-    activeTags = currentStack;
+    result.push(prefix + raw + suffix);
+    openTags = currentStack;
   }
 
   return result.length > 0 ? result : [text.trim()];

@@ -400,7 +400,7 @@ _ABBREVIATIONS = {
 
 
 def _split_sentences(text: str) -> list[str]:
-    splits = re.split(r'([.!?…]+[\x22\x27)\]]*\s+)', text)
+    splits = re.split(r'([.!?…]+[\x22\x27”’\)\]]*\s+)', text)
     sentences = []
     current = ""
     for i in range(0, len(splits), 2):
@@ -415,8 +415,10 @@ def _split_sentences(text: str) -> list[str]:
                 continue
             if len(clean_word) == 1 and clean_word.isalpha():
                 continue
-            if i + 2 < len(splits) and splits[i + 2][:1].islower() and not re.search(r"[!?]", delim):
-                continue
+            if i + 2 < len(splits):
+                next_clean = re.sub(r"<[^>]+>", "", splits[i + 2]).lstrip('"\'“”‘’([{').strip()
+                if next_clean and next_clean[0].islower() and not re.search(r"[!?]", delim):
+                    continue
         if current.strip():
             sentences.append(current.strip())
             current = ""
