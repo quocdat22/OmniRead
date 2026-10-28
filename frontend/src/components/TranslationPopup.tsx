@@ -113,8 +113,9 @@ export default function TranslationPopup({
     return splitSentencesHtml(block.translation);
   }, [block.translation]);
 
-  // Floating UI positioning
-  const { refs, floatingStyles, context } = useFloating({
+  // Floating UI positioning với reference trực tiếp
+  const { refs, floatingStyles, context, placement, isPositioned } = useFloating({
+    elements: { reference },
     placement: "bottom",
     whileElementsMounted: autoUpdate,
     middleware: [
@@ -192,79 +193,104 @@ export default function TranslationPopup({
     ? Math.max(12, Math.round(block.font_size * scale * (baseSize / 15) * 10) / 10)
     : baseSize;
 
+  // Tính hướng phóng to / xuất hiện theo vị trí placement của popup
+  const transformOrigin = placement.startsWith("bottom")
+    ? "center top"
+    : placement.startsWith("top")
+    ? "center bottom"
+    : placement.startsWith("left")
+    ? "right center"
+    : "left center";
+
+  const yOffset = placement.startsWith("top") ? -6 : 6;
+
   return (
     <FloatingPortal>
-      <motion.div
+      {/* 
+        Container định vị độc lập bằng Floating UI. 
+        Không đặt animation transform trực tiếp lên container này để tránh 
+        xung đột ghi đè transform translate(x, y) của Floating UI.
+      */}
+      <div
         ref={refs.setFloating}
-        style={floatingStyles}
-        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 6 }}
-        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 4 }}
-        transition={{
-          type: "spring",
-          damping: 26,
-          stiffness: 420,
-          mass: 0.8,
+        style={{
+          ...floatingStyles,
+          visibility: isPositioned ? "visible" : "hidden",
         }}
-        className="z-[1000] min-w-[min(260px,calc(100vw-24px))] max-w-[calc(100vw-24px)] flex flex-col bg-surface text-foreground border border-border rounded-xl shadow-2xl backdrop-blur-sm"
+        className="z-[1000] popup pointer-events-auto"
         {...getFloatingProps()}
       >
-        <div className="p-3.5 overflow-auto leading-relaxed" style={{ fontSize: `${computedFontSize}px` }}>
-          {block.group_size > 1 && (
-            <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5 font-medium">
-              <Split className="h-3.5 w-3.5 shrink-0" />
-              <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
-            </div>
-          )}
-          <AnimatePresence mode="wait" initial={false}>
-            {ready ? (
-              <motion.p
-                key="ready"
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -2 }}
-                transition={{ duration: 0.15 }}
-                className="m-0 whitespace-pre-wrap"
-              >
-                {sentences.map((sentText, idx) => (
-                  <span
-                    key={idx}
-                    className={`popup-sentence ${activeSentenceIdx === idx ? "active" : ""}`}
-                    onMouseEnter={() => handleSentenceMouseEnter(idx)}
-                    onMouseLeave={handleSentenceMouseLeave}
-                  >
-                    <FormattedText text={sentText} />{" "}
-                  </span>
-                ))}
-              </motion.p>
-            ) : block.status === "error" ? (
-              <motion.p
-                key="error"
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -2 }}
-                transition={{ duration: 0.15 }}
-                className="m-0 text-danger text-sm flex items-center gap-1.5"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
-                <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
-              </motion.p>
-            ) : (
-              <motion.p
-                key="loading"
-                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -2 }}
-                transition={{ duration: 0.15 }}
-                className="m-0 text-muted text-sm flex items-center gap-1.5"
-              >
-                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
-                <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
-              </motion.p>
+        {/* Phần tử chuyển động với Motion */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: yOffset }}
+          animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: yOffset }}
+          style={{ transformOrigin }}
+          transition={{
+            type: "spring",
+            damping: 26,
+            stiffness: 420,
+            mass: 0.8,
+          }}
+          className="w-full max-h-full flex flex-col bg-surface text-foreground border border-border rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden"
+        >
+          <div className="p-3.5 overflow-auto leading-relaxed" style={{ fontSize: `${computedFontSize}px` }}>
+            {block.group_size > 1 && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5 font-medium">
+                <Split className="h-3.5 w-3.5 shrink-0" />
+                <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
+              </div>
             )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+            <AnimatePresence mode="wait" initial={false}>
+              {ready ? (
+                <motion.p
+                  key="ready"
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.15 }}
+                  className="m-0 whitespace-pre-wrap"
+                >
+                  {sentences.map((sentText, idx) => (
+                    <span
+                      key={idx}
+                      className={`popup-sentence ${activeSentenceIdx === idx ? "active" : ""}`}
+                      onMouseEnter={() => handleSentenceMouseEnter(idx)}
+                      onMouseLeave={handleSentenceMouseLeave}
+                    >
+                      <FormattedText text={sentText} />{" "}
+                    </span>
+                  ))}
+                </motion.p>
+              ) : block.status === "error" ? (
+                <motion.p
+                  key="error"
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.15 }}
+                  className="m-0 text-danger text-sm flex items-center gap-1.5"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+                  <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
+                </motion.p>
+              ) : (
+                <motion.p
+                  key="loading"
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.15 }}
+                  className="m-0 text-muted text-sm flex items-center gap-1.5"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
+                  <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </div>
     </FloatingPortal>
   );
 }
