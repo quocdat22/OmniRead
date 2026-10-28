@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import PdfPage from "../components/PdfPage";
+import ThemeToggle from "../components/ThemeToggle";
 import TranslationPopup from "../components/TranslationPopup";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import { useProgress } from "../hooks/useProgress";
@@ -128,20 +129,26 @@ export default function Reader({ bookId }: { bookId: number }) {
     [loadPage],
   );
 
-  // Khi tiến độ dịch đổi: tải lại các trang đang gần màn hình mà còn block chưa dịch.
+  // Khi progress tăng trang dịch xong -> re-fetch các trang đang nằm trong viewport.
+  const prevPagesDone = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!progress) return;
-    const t = setTimeout(() => {
-      nearPages.current.forEach((n) => {
-        const pd = pagesRef.current[n];
-        const unfinished = pd?.blocks.some((b) => b.status === "pending" || b.status === "translating");
-        if (!pd || unfinished) void loadPage(n, true);
-      });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [progress?.done, progress?.pages_done, progress?.errors, progress?.status, loadPage]); // eslint-disable-line react-hooks/exhaustive-deps
+    const cur = progress.pages_done ?? progress.done;
+    if (prevPagesDone.current !== undefined && cur > prevPagesDone.current) {
+      for (const p of nearPages.current) void loadPage(p, true);
+    }
+    prevPagesDone.current = cur;
+  }, [progress, loadPage]);
 
-  // ---------------------------------------------------------------- chọn block / popup
+  // ---------------------------------------------------------------- tracking trang hiện tại
+  const onCenter = useCallback((n: number) => setCurrent(n), []);
+  const onAspect = useCallback(
+    (n: number, a: number) =>
+      setAspects((prev) => (Math.abs((prev[n] ?? 0) - a) < 0.001 ? prev : { ...prev, [n]: a })),
+    [],
+  );
+
+  // ---------------------------------------------------------------- chọn block & mở popup
   const onSelectBlock = useCallback((block: Block, el: HTMLElement) => {
     setHoveredSentence(null);
     setSelected((prev) =>
@@ -171,9 +178,24 @@ export default function Reader({ bookId }: { bookId: number }) {
     [selected],
   );
 
-  const selectedBlock = selected
-    ? (pages[selected.page]?.blocks.find((b) => b.id === selected.blockId) ?? null)
-    : null;
+  // Tự động đóng popup nếu click ra ngoài PDF overlay
+  useEffect(() => {
+    function handleGlobalClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest(".popup") || target.closest(".block")) return;
+      setSelected(null);
+    }
+    document.addEventListener("mousedown", handleGlobalClick);
+    return () => document.removeEventListener("mousedown", handleGlobalClick);
+  }, []);
+
+  // Block được chọn hiện tại (đầy đủ thông tin)
+  const selectedBlock = useMemo(() => {
+    if (!selected) return null;
+    const pageData = pages[selected.page];
+    return pageData?.blocks.find((b) => b.id === selected.blockId) ?? null;
+  }, [selected, pages]);
 
   const orderedBlocks = useMemo(
     () =>
@@ -234,34 +256,48 @@ export default function Reader({ bookId }: { bookId: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, move]);
 
+  // ---------------------------------------------------------------- toolbar actions
+  function changeZoom(next: number) {
+    const clamped = Math.max(0.4, Math.min(2.5, next));
+    const oldWidth = Math.round(BASE_WIDTH * zoom);
+    const newWidth = Math.round(BASE_WIDTH * clamped);
+    const ratio = newWidth / oldWidth;
+
+    const pageEl = document.getElementById(`page-${current}`);
+    const beforeTop = pageEl ? pageEl.getBoundingClientRect().top : 0;
+    const scrollY = window.scrollY;
+
+    setZoom(clamped);
+
+    requestAnimationFrame(() => {
+      if (pageEl) {
+        const afterTop = pageEl.getBoundingClientRect().top;
+        window.scrollTo(0, scrollY + (afterTop - beforeTop));
+      } else {
+        window.scrollTo(0, scrollY * ratio);
+      }
+    });
+  }
+
+  // Khôi phục vị trí trang đã lưu khi PDF load xong lần đầu
+  const restoredRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!pdf || restoredRef.current) return;
+    restoredRef.current = true;
+    if (current > 1) {
+      setTimeout(() => {
+        document.getElementById(`page-${current}`)?.scrollIntoView({ block: "start" });
+      }, 50);
+    }
+  }, [pdf, current]);
+
   async function retryErrors() {
     await api.retryBook(bookId);
     restartProgress();
   }
 
-  // ---------------------------------------------------------------- zoom / điều hướng trang
-  const onAspect = useCallback(
-    (n: number, a: number) =>
-      setAspects((prev) => (Math.abs((prev[n] ?? 0) - a) < 0.001 ? prev : { ...prev, [n]: a })),
-    [],
-  );
-  const onCenter = useCallback((n: number) => setCurrent(n), []);
-
-  function changeZoom(next: number) {
-    zoomRatio.current = window.scrollY / Math.max(1, document.documentElement.scrollHeight);
-    setZoom(Math.min(2.5, Math.max(0.5, Math.round(next * 100) / 100)));
-  }
-  // Giữ nguyên vị trí đọc (theo tỉ lệ) sau khi đổi zoom.
-  const zoomRatio = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    if (zoomRatio.current == null) return;
-    window.scrollTo(0, zoomRatio.current * document.documentElement.scrollHeight);
-    zoomRatio.current = null;
-  }, [zoom]);
-
-  function goTo(n: number) {
-    if (!pdf || !Number.isFinite(n)) return;
-    const p = Math.min(Math.max(1, Math.round(n)), pdf.numPages);
+  function goTo(p: number) {
+    if (!pdf || p < 1 || p > pdf.numPages) return;
     document.getElementById(`page-${p}`)?.scrollIntoView({ block: "start" });
   }
 
@@ -278,33 +314,46 @@ export default function Reader({ bookId }: { bookId: number }) {
   const canRetry = !!progress && (progress.errors > 0 || progress.status === "error");
 
   return (
-    <div className="reader">
-      <header className="reader-bar">
-        <Link to="/" className="btn">← Thư viện</Link>
-        <div className="reader-title" title={book?.title}>{book?.title ?? "…"}</div>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <header className="sticky top-0 z-50 h-14 px-3 sm:px-4 flex items-center gap-3 bg-surface/95 backdrop-blur-sm border-b border-border shadow-xs">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
+        >
+          ← Thư viện
+        </Link>
+        <div className="font-semibold text-sm text-foreground max-w-[200px] sm:max-w-[280px] truncate" title={book?.title}>
+          {book?.title ?? "…"}
+        </div>
 
-        <div className="chip">
+        <div className="hidden md:flex items-center gap-2 text-xs text-muted bg-surface-hover/60 px-2.5 py-1 rounded-lg border border-border">
           {!progress ? null : progress.status === "parsing" ? (
             "Đang phân tích PDF…"
           ) : progress.status === "error" ? (
-            <span className="err">{progress.error_msg}</span>
+            <span className="text-danger font-medium">{progress.error_msg}</span>
           ) : (
             <>
-              <span>{progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {pagesDone}/{pagesTotal}</span>
-              {progress.errors > 0 && <span className="err">{progress.errors} lỗi</span>}
+              <span>
+                {progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {pagesDone}/{pagesTotal}
+              </span>
+              {progress.errors > 0 && <span className="text-danger font-medium">{progress.errors} lỗi</span>}
             </>
           )}
         </div>
 
         {canRetry && (
-          <button className="btn btn-primary" onClick={retryErrors}>
+          <button
+            type="button"
+            className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
+            onClick={retryErrors}
+          >
             Dịch lại lỗi
           </button>
         )}
 
-        <div className="filler" />
+        <div className="flex-1" />
 
-        <label className="page-nav">
+        <label className="flex items-center gap-1.5 text-xs text-muted font-medium">
           Trang
           <input
             type="number"
@@ -313,19 +362,54 @@ export default function Reader({ bookId }: { bookId: number }) {
             value={jump}
             onChange={(e) => setJump(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && goTo(Number(jump))}
+            className="w-14 px-2 py-0.5 text-center text-xs font-medium bg-background border border-border rounded-lg text-foreground focus:outline-hidden focus:border-accent"
           />
           / {pdf?.numPages ?? "…"}
         </label>
-        <div className="zoom">
-          <button className="btn" onClick={() => changeZoom(zoom - 0.1)}>−</button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button className="btn" onClick={() => changeZoom(zoom + 0.1)}>+</button>
-          <button className="btn" onClick={() => changeZoom((window.innerWidth - 32) / BASE_WIDTH)}>Vừa</button>
+
+        <div className="flex items-center gap-1 text-xs">
+          <button
+            type="button"
+            className="px-2 py-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors"
+            onClick={() => changeZoom(zoom - 0.1)}
+            title="Thu nhỏ"
+          >
+            −
+          </button>
+          <span className="w-12 text-center text-xs font-medium text-muted">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            className="px-2 py-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors"
+            onClick={() => changeZoom(zoom + 0.1)}
+            title="Phóng to"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="hidden sm:inline-flex px-2 py-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors"
+            onClick={() => changeZoom((window.innerWidth - 32) / BASE_WIDTH)}
+            title="Vừa màn hình"
+          >
+            Vừa
+          </button>
         </div>
+
+        <ThemeToggle />
       </header>
 
-      {error && <div className="notice err">{error}</div>}
-      {!pdf && !error && <div className="notice">Đang tải PDF…</div>}
+      {error && (
+        <div className="m-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm">
+          {error}
+        </div>
+      )}
+      {!pdf && !error && (
+        <div className="m-4 p-4 rounded-xl border border-border bg-surface text-muted text-sm text-center">
+          Đang tải dữ liệu PDF…
+        </div>
+      )}
 
       <main
         className="pages"

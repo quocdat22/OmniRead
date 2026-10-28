@@ -2,7 +2,7 @@ import {
   autoUpdate, flip, FloatingPortal, offset, shift, size,
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block, SentenceInfo } from "../types";
 import { splitSentencesHtml } from "../utils/sentenceSplitter";
@@ -59,139 +59,152 @@ function getCorrespondingOrigRects(
     origCur += origLens[i];
     const oEnd = origCur / totalOrig;
 
-    if (Math.max(rStart, oStart) < Math.min(rEnd, oEnd) + 1e-4) {
+    const overlap = Math.max(0, Math.min(rEnd, oEnd) - Math.max(rStart, oStart));
+    if (overlap > 0) {
       matched.push(origSentences[i]);
     }
   }
 
-  if (matched.length === 0) {
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    let oCur = 0;
-    for (let i = 0; i < origSentences.length; i++) {
-      const oMid = (oCur + origLens[i] / 2) / totalOrig;
-      oCur += origLens[i];
-      const dist = Math.abs(oMid - rMid);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestIdx = i;
+  if (matched.length > 0) {
+    const allRects: [number, number, number, number][] = [];
+    for (const m of matched) {
+      if (m.rects && m.rects.length > 0) {
+        allRects.push(...m.rects);
       }
     }
-    matched.push(origSentences[bestIdx]);
+    if (allRects.length > 0) return allRects;
   }
 
-  const allRects = matched.flatMap((s) => s.rects || []);
-  return allRects.length > 0 ? allRects : [fallbackBbox];
+  // Fallback nếu không tính được giao cắt: tìm câu gốc có điểm giữa gần nhất
+  let bestIdx = 0;
+  let minDiff = Infinity;
+  let accum = 0;
+  for (let i = 0; i < origSentences.length; i++) {
+    const origMid = (accum + origLens[i] / 2) / totalOrig;
+    accum += origLens[i];
+    const diff = Math.abs(origMid - rMid);
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestIdx = i;
+    }
+  }
+  const fallbackTarget = origSentences[bestIdx];
+  return fallbackTarget && fallbackTarget.rects && fallbackTarget.rects.length > 0
+    ? fallbackTarget.rects
+    : [fallbackBbox];
 }
 
 export default function TranslationPopup({
-  block, reference, pageWidth, onClose, onHoverSentence,
+  block,
+  reference,
+  pageWidth: _pageWidth,
+  onClose,
+  onHoverSentence,
 }: Props) {
-  const { fontSize: popupFontSize } = useHighlightStyle();
+  const { fontSize: baseSize } = useHighlightStyle();
   const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
 
-  const onHoverSentenceRef = useRef(onHoverSentence);
-  onHoverSentenceRef.current = onHoverSentence;
-  const leaveTimerRef = useRef<number | null>(null);
+  // Split bản dịch thành các câu
+  const sentences = useMemo(() => {
+    if (!block.translation) return [];
+    return splitSentencesHtml(block.translation);
+  }, [block.translation]);
 
+  // Floating UI positioning
   const { refs, floatingStyles, context } = useFloating({
-    open: true,
-    onOpenChange: (open) => !open && onClose(),
-    elements: { reference },
     placement: "bottom",
-    whileElementsMounted: autoUpdate, // bám theo block khi cuộn / zoom
+    whileElementsMounted: autoUpdate,
     middleware: [
       offset(8),
-      flip({ padding: 12, fallbackPlacements: ["top", "bottom"] }),
+      flip({ fallbackPlacements: ["top", "right", "left"] }),
+      shift({ padding: 12 }),
       size({
-        padding: 12,
-        apply({ rects, availableHeight, elements }) {
-          elements.floating.style.width = `${Math.round(rects.reference.width)}px`;
-          elements.floating.style.maxHeight = `${Math.max(140, availableHeight)}px`;
+        apply({ rects, elements, availableHeight }) {
+          const refW = rects.reference.width;
+          const maxW = Math.max(refW, 360);
+          const screenMax = window.innerWidth - 24;
+          const finalMax = Math.min(maxW, screenMax);
+
+          Object.assign(elements.floating.style, {
+            width: `${Math.max(refW, Math.min(finalMax, 520))}px`,
+            maxWidth: `${finalMax}px`,
+            maxHeight: `${Math.min(availableHeight - 16, 450)}px`,
+          });
         },
       }),
-      shift({ padding: 12 }),
     ],
   });
-  // Esc + click ra ngoài để đóng.
-  const dismiss = useDismiss(context, { escapeKey: true, outsidePress: true });
+
+  const dismiss = useDismiss(context, {
+    outsidePress: true,
+    escapeKey: true,
+  });
+
   const { getFloatingProps } = useInteractions([dismiss]);
 
-  const ready = block.status === "done" && !!block.translation;
-
-  // Tách các câu trong bản dịch
-  const sentences = useMemo(() => {
-    if (!ready || !block.translation) return [];
-    return splitSentencesHtml(block.translation);
-  }, [ready, block.translation]);
-
-  // Danh sách câu gốc từ backend
-  const origSentences = useMemo(() => {
-    if (block.sentences && block.sentences.length > 0) {
-      return block.sentences;
-    }
-    return [{ text: block.text, rects: [block.bbox] }];
-  }, [block.sentences, block.text, block.bbox]);
-
-  // Reset highlight khi block thay đổi hoặc unmount
   useEffect(() => {
-    setActiveSentenceIdx(null);
-    onHoverSentenceRef.current?.(null);
-    return () => {
-      if (leaveTimerRef.current != null) {
-        window.clearTimeout(leaveTimerRef.current);
-      }
-      onHoverSentenceRef.current?.(null);
-    };
-  }, [block.id]);
+    refs.setReference(reference);
+  }, [reference, refs]);
 
+  // Esc để đóng popup
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  // Hover câu dịch -> tìm và kích hoạt bounding rects câu gốc
   const handleSentenceMouseEnter = (sIdx: number) => {
-    if (leaveTimerRef.current != null) {
-      window.clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
     setActiveSentenceIdx(sIdx);
+    if (!onHoverSentence) return;
+
+    const origSentences = block.sentences || [];
     const rects = getCorrespondingOrigRects(sIdx, sentences, origSentences, block.bbox);
-    onHoverSentenceRef.current?.(rects);
+    onHoverSentence(rects);
   };
 
   const handleSentenceMouseLeave = () => {
-    if (leaveTimerRef.current != null) {
-      window.clearTimeout(leaveTimerRef.current);
+    setActiveSentenceIdx(null);
+    if (onHoverSentence) {
+      onHoverSentence(null);
     }
-    leaveTimerRef.current = window.setTimeout(() => {
-      setActiveSentenceIdx(null);
-      onHoverSentenceRef.current?.(null);
-      leaveTimerRef.current = null;
-    }, 60);
   };
 
-  // Tính scale factor dựa theo tỷ lệ giữa kích thước hiển thị trên màn hình và PDF point gốc
-  const pageEl = reference.closest(".pdf-page") as HTMLElement | null;
-  const scale =
-    pageEl && pageWidth
-      ? pageEl.clientWidth / pageWidth
-      : reference.parentElement && pageWidth
-        ? reference.parentElement.clientWidth / pageWidth
-        : 1;
+  // Cleanup highlight khi popup bị unmount
+  useEffect(() => {
+    return () => {
+      if (onHoverSentence) onHoverSentence(null);
+    };
+  }, [onHoverSentence]);
 
-  // Cỡ chữ theo CSS px:
-  const baseSize = popupFontSize ?? 15;
+  const ready = block.status === "done" && block.translation;
+
+  // Tính scale font size theo kích thước trang thực tế
+  const refWidth = reference.getBoundingClientRect().width;
+  const blockPtWidth = block.bbox[2] - block.bbox[0];
+  const scale = blockPtWidth > 0 ? refWidth / blockPtWidth : 1;
   const computedFontSize = block.font_size
     ? Math.max(12, Math.round(block.font_size * scale * (baseSize / 15) * 10) / 10)
     : baseSize;
 
   return (
     <FloatingPortal>
-      <div ref={refs.setFloating} style={floatingStyles} className="popup" {...getFloatingProps()}>
-        <div className="popup-body" style={{ fontSize: `${computedFontSize}px` }}>
+      <div
+        ref={refs.setFloating}
+        style={floatingStyles}
+        className="z-[1000] min-w-[min(260px,calc(100vw-24px))] max-w-[calc(100vw-24px)] flex flex-col bg-surface text-foreground border border-border rounded-xl shadow-2xl backdrop-blur-sm"
+        {...getFloatingProps()}
+      >
+        <div className="p-3.5 overflow-auto leading-relaxed" style={{ fontSize: `${computedFontSize}px` }}>
           {block.group_size > 1 && (
-            <div style={{ fontSize: "11px", opacity: 0.7, marginBottom: "4px" }}>
+            <div className="text-[11px] text-muted mb-1 font-medium">
               Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})
             </div>
           )}
           {ready ? (
-            <p>
+            <p className="m-0 whitespace-pre-wrap">
               {sentences.map((sentText, idx) => (
                 <span
                   key={idx}
@@ -204,9 +217,9 @@ export default function TranslationPopup({
               ))}
             </p>
           ) : block.status === "error" ? (
-            <p className="err">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
+            <p className="m-0 text-danger text-sm">Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</p>
           ) : (
-            <p className="muted">Đang dịch… bản dịch sẽ tự hiện khi xong.</p>
+            <p className="m-0 text-muted text-sm">Đang dịch… bản dịch sẽ tự hiện khi xong.</p>
           )}
         </div>
       </div>

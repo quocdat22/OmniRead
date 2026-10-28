@@ -1,0 +1,354 @@
+/* ---------------- PDF Reader Canvas & Page ---------------- */
+.pdf-page {
+  position: relative;
+  margin-inline: auto;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  scroll-margin-top: 60px;
+}
+.pdf-page canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.page-no {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 48px;
+  color: #e5e7eb;
+  user-select: none;
+}
+.dark .page-no {
+  color: #374151;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------------- Clickable Block Overlays ---------------- */
+.block {
+  position: absolute;
+  cursor: pointer;
+}
+
+/* Option 1: Vạch sáng bên trái (Mặc định) */
+[data-highlight-style="bar"] .block::before,
+.pages:not([data-highlight-style]) .block::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 3px;
+  border-radius: 2px;
+  background-color: var(--highlight-color, var(--accent));
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  pointer-events: none;
+}
+[data-highlight-style="bar"] .block:hover::before,
+.pages:not([data-highlight-style]) .block:hover::before {
+  opacity: 0.45;
+}
+[data-highlight-style="bar"] .block.selected::before,
+[data-highlight-style="bar"] .block.selected:hover::before,
+.pages:not([data-highlight-style]) .block.selected::before,
+.pages:not([data-highlight-style]) .block.selected:hover::before {
+  opacity: 1;
+}
+[data-highlight-style="bar"] .block.error::before,
+.pages:not([data-highlight-style]) .block.error::before {
+  opacity: 1;
+  background-color: var(--danger);
+}
+
+/* Option 2: Tô nền cho đoạn văn bản đã chọn */
+[data-highlight-style="background"] .block {
+  border-radius: 4px;
+  box-sizing: content-box;
+  margin: calc(-1 * var(--highlight-padding, 4px));
+  padding: var(--highlight-padding, 4px);
+  transition: background-color 0.15s ease, margin 0.15s ease, padding 0.15s ease;
+}
+[data-highlight-style="background"] .block:hover {
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.07);
+}
+[data-highlight-style="background"] .block.selected {
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.15);
+}
+[data-highlight-style="background"] .block.error {
+  background-color: rgba(220, 38, 38, 0.2);
+}
+
+/* Option 3: Đóng khung cho văn bản đã chọn */
+[data-highlight-style="border"] .block {
+  border-radius: 5px;
+  box-sizing: content-box;
+  margin: calc(-1 * var(--highlight-padding, 4px));
+  padding: var(--highlight-padding, 4px);
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease, margin 0.15s ease, padding 0.15s ease;
+}
+[data-highlight-style="border"] .block:hover {
+  border-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.45);
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.04);
+}
+[data-highlight-style="border"] .block.selected {
+  border-color: var(--highlight-color, var(--accent));
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.08);
+}
+[data-highlight-style="border"] .block.error {
+  border-color: var(--danger);
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+/* Dark mode adjustments for background & border */
+.dark [data-highlight-style="background"] .block:hover,
+.dark [data-highlight-style="background"] .preview-block:hover {
+  background-color: rgba(var(--highlight-color-rgb, 96, 165, 250), 0.10);
+}
+.dark [data-highlight-style="background"] .block.selected,
+.dark [data-highlight-style="background"] .preview-block.selected {
+  background-color: rgba(var(--highlight-color-rgb, 96, 165, 250), 0.20);
+}
+.dark [data-highlight-style="background"] .block.error,
+.dark [data-highlight-style="background"] .preview-block.error {
+  background-color: rgba(248, 113, 113, 0.25);
+}
+
+.dark [data-highlight-style="border"] .block:hover,
+.dark [data-highlight-style="border"] .preview-block:hover {
+  border-color: rgba(var(--highlight-color-rgb, 96, 165, 250), 0.55);
+  background-color: rgba(var(--highlight-color-rgb, 96, 165, 250), 0.06);
+}
+.dark [data-highlight-style="border"] .block.selected,
+.dark [data-highlight-style="border"] .preview-block.selected {
+  border-color: var(--highlight-color, var(--accent));
+  background-color: rgba(var(--highlight-color-rgb, 96, 165, 250), 0.14);
+}
+.dark [data-highlight-style="border"] .block.error,
+.dark [data-highlight-style="border"] .preview-block.error {
+  border-color: var(--danger);
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+/* ---------------- Sentence Hover & Highlight ---------------- */
+.popup-sentence {
+  display: inline;
+  padding: 1px 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.popup-sentence:hover,
+.popup-sentence.active {
+  background-color: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.15);
+}
+.dark .popup-sentence:hover,
+.dark .popup-sentence.active {
+  background-color: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.25);
+}
+
+/* SVG highlight shape for seamless block */
+.sentence-highlight-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 35;
+  animation: sentence-fade-in 0.12s ease-out forwards;
+}
+
+.sentence-highlight-path {
+  fill: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.22);
+  stroke: var(--sentence-highlight-color, #1d4ed8);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 1px 4px rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.2));
+}
+
+.dark .sentence-highlight-path {
+  fill: rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.28);
+  stroke: var(--sentence-highlight-color, #60a5fa);
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 1px 6px rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.3));
+}
+
+/* Corner Brackets Style 「 ... 」 for Sentence Highlight */
+.sentence-bracket-path {
+  fill: none;
+  stroke: var(--sentence-highlight-color, #1d4ed8);
+  stroke-width: 2.4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 3px rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.45));
+}
+
+.dark .sentence-bracket-path {
+  stroke: var(--sentence-highlight-color, #60a5fa);
+  stroke-width: 2.6px;
+  filter: drop-shadow(0 1px 5px rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.7));
+}
+
+.sentence-highlight {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 4px;
+  z-index: 35;
+  background-color: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.22);
+  box-shadow: 0 0 0 1.2px var(--sentence-highlight-color, #1d4ed8),
+              0 1px 6px rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.2);
+  animation: sentence-fade-in 0.12s ease-out forwards;
+  mix-blend-mode: multiply;
+}
+
+.dark .sentence-highlight {
+  background-color: rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.28);
+  box-shadow: 0 0 0 1.2px var(--sentence-highlight-color, #60a5fa),
+              0 1px 8px rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.3);
+  mix-blend-mode: screen;
+}
+
+@keyframes sentence-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------------- Preview Area in Settings ---------------- */
+.preview-paper {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  position: relative;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  user-select: none;
+}
+.dark .preview-paper {
+  background: #151821;
+  color: #e2e8f0;
+  border-color: #262e3d;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.preview-block {
+  position: relative;
+  margin-bottom: 10px;
+  line-height: 1.65;
+  font-size: 14.5px;
+  transition: all 0.15s ease;
+}
+
+[data-highlight-style="bar"] .preview-block {
+  padding: 10px 14px;
+}
+[data-highlight-style="bar"] .preview-block::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0px;
+  width: 3.5px;
+  border-radius: 2px;
+  background-color: var(--highlight-color, var(--accent));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+[data-highlight-style="bar"] .preview-block:hover::before {
+  opacity: 0.45;
+}
+[data-highlight-style="bar"] .preview-block.selected::before {
+  opacity: 1;
+}
+
+[data-highlight-style="background"] .preview-block {
+  border-radius: 6px;
+  padding: calc(6px + var(--highlight-padding, 4px)) calc(10px + var(--highlight-padding, 4px));
+  transition: background-color 0.15s ease, padding 0.15s ease;
+}
+[data-highlight-style="background"] .preview-block:hover {
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.07);
+}
+[data-highlight-style="background"] .preview-block.selected {
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.15);
+}
+
+[data-highlight-style="border"] .preview-block {
+  border-radius: 6px;
+  padding: calc(6px + var(--highlight-padding, 4px)) calc(10px + var(--highlight-padding, 4px));
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease, padding 0.15s ease;
+}
+[data-highlight-style="border"] .preview-block:hover {
+  border-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.45);
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.04);
+}
+[data-highlight-style="border"] .preview-block.selected {
+  border-color: var(--highlight-color, var(--accent));
+  background-color: rgba(var(--highlight-color-rgb, 37, 99, 235), 0.08);
+}
+
+.preview-sentence-highlight {
+  display: inline;
+  background-color: rgba(var(--sentence-highlight-color-rgb, 29, 78, 216), 0.22);
+  box-shadow: 0 0 0 1.2px var(--sentence-highlight-color, #1d4ed8);
+  border-radius: 3px;
+  padding: 1px 3px;
+  box-decoration-break: slice;
+  -webkit-box-decoration-break: slice;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dark .preview-sentence-highlight {
+  background-color: rgba(var(--sentence-highlight-color-rgb, 96, 165, 250), 0.28);
+  box-shadow: 0 0 0 1.2px var(--sentence-highlight-color, #60a5fa);
+}
+
+.preview-sentence-bracket {
+  display: inline;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.preview-sentence-bracket.active {
+  color: var(--fg);
+  font-weight: 500;
+}
+.preview-bracket-mark {
+  color: var(--sentence-highlight-color, #1d4ed8);
+  font-weight: 800;
+  font-size: 1.25em;
+  line-height: 0;
+  vertical-align: baseline;
+  user-select: none;
+  display: inline-block;
+  animation: sentence-fade-in 0.12s ease-out forwards;
+}
+.dark .preview-bracket-mark {
+  color: var(--sentence-highlight-color, #60a5fa);
+}
+.preview-bracket-mark.bracket-start {
+  margin-right: 1.5px;
+  transform: translateY(-1px);
+}
+.preview-bracket-mark.bracket-end {
+  margin-left: 1.5px;
+  transform: translateY(2px);
+}
