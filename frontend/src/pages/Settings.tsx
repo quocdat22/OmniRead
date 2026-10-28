@@ -40,9 +40,6 @@ export default function Settings() {
     color: highlightColor,
     setColor: setHighlightColor,
     colorPreset,
-    sentenceColor,
-    setSentenceColor,
-    sentenceColorPreset,
     fontSize: popupFontSize,
     setFontSize: setPopupFontSize,
   } = useHighlightStyle();
@@ -99,9 +96,12 @@ export default function Settings() {
           {/* ---------------- Option màu sắc đánh dấu block ---------------- */}
           <div className="setting-color-row">
             <div className="setting-color-header">
-              <span>Màu sắc đánh dấu khối (Block Highlight):</span>
+              <span>Màu sắc nổi bật (Highlight Color):</span>
               <strong>{colorPreset.name}</strong>
             </div>
+            <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
+              Màu sắc đánh dấu khối văn bản. Vùng tô sáng câu đối chiếu sẽ tự động đồng bộ theo tông màu này và được thiết kế đậm nét hơn để phân biệt rõ câu và đoạn.
+            </p>
             <div className="color-swatches">
               {COLOR_PRESETS.map((col) => {
                 const isSelected = highlightColor === col.id;
@@ -113,37 +113,7 @@ export default function Settings() {
                     style={{ "--swatch-color": col.hex } as React.CSSProperties}
                     onClick={() => setHighlightColor(col.id)}
                     title={col.name}
-                    aria-label={`Màu khối: ${col.name}`}
-                  >
-                    <span className="color-swatch-circle" />
-                    {isSelected && <span className="color-swatch-check">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---------------- Option màu sắc tô sáng câu đối chiếu ---------------- */}
-          <div className="setting-color-row">
-            <div className="setting-color-header">
-              <span>Màu tô sáng câu đối chiếu (Sentence Highlight):</span>
-              <strong>{sentenceColorPreset.name}</strong>
-            </div>
-            <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
-              Màu sắc nổi bật tô chồng lên câu tương ứng ở văn bản gốc khi bạn rê chuột vào từng câu trong popup dịch.
-            </p>
-            <div className="color-swatches">
-              {COLOR_PRESETS.map((col) => {
-                const isSelected = sentenceColor === col.id;
-                return (
-                  <button
-                    key={col.id}
-                    type="button"
-                    className={`color-swatch-btn${isSelected ? " active" : ""}`}
-                    style={{ "--swatch-color": col.hex } as React.CSSProperties}
-                    onClick={() => setSentenceColor(col.id)}
-                    title={col.name}
-                    aria-label={`Màu câu: ${col.name}`}
+                    aria-label={`Màu: ${col.name}`}
                   >
                     <span className="color-swatch-circle" />
                     {isSelected && <span className="color-swatch-check">✓</span>}
@@ -235,8 +205,8 @@ export default function Settings() {
                   "--highlight-padding": `${highlightPadding}px`,
                   "--highlight-color": colorPreset.hex,
                   "--highlight-color-rgb": colorPreset.rgb,
-                  "--sentence-highlight-color": sentenceColorPreset.hex,
-                  "--sentence-highlight-color-rgb": sentenceColorPreset.rgb,
+                  "--sentence-highlight-color": colorPreset.sentenceHex,
+                  "--sentence-highlight-color-rgb": colorPreset.sentenceRgb,
                 } as React.CSSProperties
               }
             >

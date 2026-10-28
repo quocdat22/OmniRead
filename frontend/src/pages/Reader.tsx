@@ -50,7 +50,6 @@ export default function Reader({ bookId }: { bookId: number }) {
     style: highlightStyle,
     padding: highlightPadding,
     colorPreset,
-    sentenceColorPreset,
   } = useHighlightStyle();
   const [progress, restartProgress] = useProgress(bookId);
 
@@ -337,8 +336,8 @@ export default function Reader({ bookId }: { bookId: number }) {
             "--highlight-padding": `${highlightPadding}px`,
             "--highlight-color": colorPreset.hex,
             "--highlight-color-rgb": colorPreset.rgb,
-            "--sentence-highlight-color": sentenceColorPreset.hex,
-            "--sentence-highlight-color-rgb": sentenceColorPreset.rgb,
+            "--sentence-highlight-color": colorPreset.sentenceHex,
+            "--sentence-highlight-color-rgb": colorPreset.sentenceRgb,
           } as React.CSSProperties
         }
       >

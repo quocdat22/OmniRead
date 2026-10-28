@@ -5,12 +5,10 @@ export const HIGHLIGHT_STORAGE_KEY = "omni_highlight_style";
 export const HIGHLIGHT_PADDING_KEY = "omni_highlight_padding";
 export const HIGHLIGHT_COLOR_KEY = "omni_highlight_color";
 export const HIGHLIGHT_FONT_SIZE_KEY = "omni_popup_font_size";
-export const SENTENCE_HIGHLIGHT_COLOR_KEY = "omni_sentence_highlight_color";
 
 export const DEFAULT_HIGHLIGHT_STYLE: HighlightStyle = "bar";
 export const DEFAULT_HIGHLIGHT_PADDING = 4;
 export const DEFAULT_HIGHLIGHT_COLOR: HighlightColor = "blue";
-export const DEFAULT_SENTENCE_HIGHLIGHT_COLOR: HighlightColor = "yellow";
 export const DEFAULT_POPUP_FONT_SIZE = 15;
 
 export interface ColorPreset {
@@ -18,15 +16,60 @@ export interface ColorPreset {
   name: string;
   hex: string;
   rgb: string;
+  /** Tone tương tự màu block nhưng có sự khác biệt tinh tế (đậm hơn, sắc nét hơn) để phân biệt rõ câu và đoạn */
+  sentenceHex: string;
+  sentenceRgb: string;
 }
 
 export const COLOR_PRESETS: ColorPreset[] = [
-  { id: "blue", name: "Xanh dương (Mặc định)", hex: "#2563eb", rgb: "37, 99, 235" },
-  { id: "yellow", name: "Vàng", hex: "#eab308", rgb: "234, 179, 8" },
-  { id: "green", name: "Xanh lá", hex: "#16a34a", rgb: "22, 163, 74" },
-  { id: "purple", name: "Tím", hex: "#9333ea", rgb: "147, 51, 234" },
-  { id: "orange", name: "Cam", hex: "#f97316", rgb: "249, 115, 22" },
-  { id: "rose", name: "Đỏ hồng", hex: "#e11d48", rgb: "225, 29, 72" },
+  {
+    id: "blue",
+    name: "Xanh dương (Mặc định)",
+    hex: "#2563eb",
+    rgb: "37, 99, 235",
+    sentenceHex: "#1d4ed8",
+    sentenceRgb: "29, 78, 216",
+  },
+  {
+    id: "yellow",
+    name: "Vàng",
+    hex: "#eab308",
+    rgb: "234, 179, 8",
+    sentenceHex: "#d97706",
+    sentenceRgb: "217, 119, 6",
+  },
+  {
+    id: "green",
+    name: "Xanh lá",
+    hex: "#16a34a",
+    rgb: "22, 163, 74",
+    sentenceHex: "#15803d",
+    sentenceRgb: "21, 128, 61",
+  },
+  {
+    id: "purple",
+    name: "Tím",
+    hex: "#9333ea",
+    rgb: "147, 51, 234",
+    sentenceHex: "#7e22ce",
+    sentenceRgb: "126, 34, 206",
+  },
+  {
+    id: "orange",
+    name: "Cam",
+    hex: "#f97316",
+    rgb: "249, 115, 22",
+    sentenceHex: "#ea580c",
+    sentenceRgb: "234, 88, 12",
+  },
+  {
+    id: "rose",
+    name: "Đỏ hồng",
+    hex: "#e11d48",
+    rgb: "225, 29, 72",
+    sentenceHex: "#be123c",
+    sentenceRgb: "190, 18, 60",
+  },
 ];
 
 export function getColorPreset(id: HighlightColor): ColorPreset {
@@ -72,18 +115,6 @@ export function getSavedHighlightColor(): HighlightColor {
   return DEFAULT_HIGHLIGHT_COLOR;
 }
 
-export function getSavedSentenceHighlightColor(): HighlightColor {
-  try {
-    const val = localStorage.getItem(SENTENCE_HIGHLIGHT_COLOR_KEY);
-    if (val && COLOR_PRESETS.some((c) => c.id === val)) {
-      return val as HighlightColor;
-    }
-  } catch {
-    // ignore
-  }
-  return DEFAULT_SENTENCE_HIGHLIGHT_COLOR;
-}
-
 export function getSavedPopupFontSize(): number {
   try {
     const val = localStorage.getItem(HIGHLIGHT_FONT_SIZE_KEY);
@@ -103,7 +134,6 @@ export function useHighlightStyle() {
   const [style, setStyleState] = useState<HighlightStyle>(getSavedHighlightStyle);
   const [padding, setPaddingState] = useState<number>(getSavedHighlightPadding);
   const [color, setColorState] = useState<HighlightColor>(getSavedHighlightColor);
-  const [sentenceColor, setSentenceColorState] = useState<HighlightColor>(getSavedSentenceHighlightColor);
   const [fontSize, setFontSizeState] = useState<number>(getSavedPopupFontSize);
 
   const setStyle = (newStyle: HighlightStyle) => {
@@ -136,16 +166,6 @@ export function useHighlightStyle() {
     }
   };
 
-  const setSentenceColor = (newColor: HighlightColor) => {
-    setSentenceColorState(newColor);
-    try {
-      localStorage.setItem(SENTENCE_HIGHLIGHT_COLOR_KEY, newColor);
-      window.dispatchEvent(new Event("omni-highlight-style-changed"));
-    } catch {
-      // ignore
-    }
-  };
-
   const setFontSize = (newSize: number) => {
     setFontSizeState(newSize);
     try {
@@ -157,52 +177,32 @@ export function useHighlightStyle() {
   };
 
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === HIGHLIGHT_STORAGE_KEY) {
-        setStyleState(getSavedHighlightStyle());
-      } else if (e.key === HIGHLIGHT_PADDING_KEY) {
-        setPaddingState(getSavedHighlightPadding());
-      } else if (e.key === HIGHLIGHT_COLOR_KEY) {
-        setColorState(getSavedHighlightColor());
-      } else if (e.key === SENTENCE_HIGHLIGHT_COLOR_KEY) {
-        setSentenceColorState(getSavedSentenceHighlightColor());
-      } else if (e.key === HIGHLIGHT_FONT_SIZE_KEY) {
-        setFontSizeState(getSavedPopupFontSize());
-      }
-    };
-    const onCustom = () => {
+    const handleSync = () => {
       setStyleState(getSavedHighlightStyle());
       setPaddingState(getSavedHighlightPadding());
       setColorState(getSavedHighlightColor());
-      setSentenceColorState(getSavedSentenceHighlightColor());
       setFontSizeState(getSavedPopupFontSize());
     };
 
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("omni-highlight-style-changed", onCustom);
+    window.addEventListener("omni-highlight-style-changed", handleSync);
+    window.addEventListener("storage", handleSync);
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("omni-highlight-style-changed", onCustom);
+      window.removeEventListener("omni-highlight-style-changed", handleSync);
+      window.removeEventListener("storage", handleSync);
     };
   }, []);
 
   const colorPreset = getColorPreset(color);
-  const sentenceColorPreset = getColorPreset(sentenceColor);
 
   return {
     style,
-    setStyle,
     padding,
-    setPadding,
     color,
-    setColor,
     colorPreset,
-    sentenceColor,
-    setSentenceColor,
-    sentenceColorPreset,
     fontSize,
+    setStyle,
+    setPadding,
+    setColor,
     setFontSize,
-    popupFontSize: fontSize,
-    setPopupFontSize: setFontSize,
   };
 }
