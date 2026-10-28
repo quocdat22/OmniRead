@@ -275,7 +275,6 @@ export default function Reader({ bookId }: { bookId: number }) {
   const pagesDone = progress
     ? (progress.pages_done ?? (progress.status === "done" ? pagesTotal : progress.done))
     : 0;
-  const pct = pagesTotal ? Math.round((pagesDone / pagesTotal) * 100) : 0;
   const canRetry = !!progress && (progress.errors > 0 || progress.status === "error");
 
   return (
@@ -292,7 +291,6 @@ export default function Reader({ bookId }: { bookId: number }) {
           ) : (
             <>
               <span>{progress.status === "translating" ? "Đang dịch" : "Đã dịch"} {pagesDone}/{pagesTotal}</span>
-              <span className="bar"><i style={{ width: `${pct}%` }} /></span>
               {progress.errors > 0 && <span className="err">{progress.errors} lỗi</span>}
             </>
           )}
