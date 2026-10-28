@@ -13,6 +13,7 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ function BookStatusIndicator({ book }: { book: Book }) {
 }
 
 export default function Library() {
+  const shouldReduceMotion = useReducedMotion();
   const [books, setBooks] = useState<Book[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [health, setHealth] = useState<{
@@ -167,6 +169,40 @@ export default function Library() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.05,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: shouldReduceMotion
+      ? { opacity: 0 }
+      : { opacity: 0, y: 14, scale: 0.98 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring" as const,
+        stiffness: 350,
+        damping: 24,
+      },
+    },
+    exit: shouldReduceMotion
+      ? { opacity: 0 }
+      : {
+          opacity: 0,
+          scale: 0.92,
+          y: -8,
+          transition: { duration: 0.2 },
+        },
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Hidden File Input */}
@@ -248,7 +284,7 @@ export default function Library() {
       )}
 
       {/* Upload Action / Dropzone Card */}
-      <div
+      <motion.div
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -259,7 +295,11 @@ export default function Library() {
           setDragOver(false);
           void upload(e.dataTransfer.files[0]);
         }}
-        className={`bg-surface border-2 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-all ${
+        animate={{
+          scale: dragOver ? 1.01 : 1,
+        }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className={`bg-surface border-2 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-5 transition-colors ${
           dragOver ? "border-accent bg-accent/5" : "border-border"
         }`}
       >
@@ -277,14 +317,17 @@ export default function Library() {
           </div>
         </div>
 
-        <button
+        <motion.button
           type="button"
           onClick={triggerFileSelect}
           disabled={uploading}
-          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-xs shrink-0 select-none ${
+          whileHover={uploading ? undefined : { scale: 1.02 }}
+          whileTap={uploading ? undefined : { scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-xs shrink-0 select-none ${
             uploading
               ? "bg-accent/70 text-white cursor-not-allowed"
-              : "bg-accent text-white hover:bg-accent-hover hover:shadow-md active:scale-98 cursor-pointer"
+              : "bg-accent text-white hover:bg-accent-hover hover:shadow-md cursor-pointer"
           }`}
         >
           {uploading ? (
@@ -298,15 +341,23 @@ export default function Library() {
               <span>Chọn file PDF</span>
             </>
           )}
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
-      {message && (
-        <div className="mt-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
-          <span>{message}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -6 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -6 }}
+            transition={{ duration: 0.2 }}
+            className="mt-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm flex items-center gap-2 overflow-hidden"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+            <span>{message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Book cards section */}
       <div className="mt-8">
@@ -316,117 +367,145 @@ export default function Library() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-          {books.map((b) => {
-            const totalPages = b.pages_total ?? b.page_count;
-            const donePages =
-              b.pages_done ?? (b.status === "done" ? totalPages : 0);
-            const pct = totalPages
-              ? Math.round((donePages / totalPages) * 100)
-              : b.total
-              ? Math.round((b.done / b.total) * 100)
-              : 0;
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          layout
+          className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4"
+        >
+          <AnimatePresence mode="popLayout">
+            {books.map((b) => {
+              const totalPages = b.pages_total ?? b.page_count;
+              const donePages =
+                b.pages_done ?? (b.status === "done" ? totalPages : 0);
+              const pct = totalPages
+                ? Math.round((donePages / totalPages) * 100)
+                : b.total
+                ? Math.round((b.done / b.total) * 100)
+                : 0;
 
-            return (
-              <div
-                key={b.id}
-                className="flex flex-col gap-2.5 p-4 bg-surface border border-border rounded-xl shadow-xs hover:shadow-md transition-shadow"
+              return (
+                <motion.div
+                  key={b.id}
+                  layout="position"
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  whileHover={shouldReduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
+                  className="flex flex-col gap-2.5 p-4 bg-surface border border-border rounded-xl shadow-xs hover:shadow-md transition-shadow"
+                >
+                  <div className="font-semibold text-foreground truncate" title={b.filename}>
+                    {b.title}
+                  </div>
+                  <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+                    {b.page_count ? <span>{b.page_count} trang ·</span> : null}
+                    <BookStatusIndicator book={b} />
+                  </div>
+                  <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-accent"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                    {b.status === "parsing" ? (
+                      <span className="text-xs text-muted inline-flex items-center gap-1.5">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Chờ phân tích…</span>
+                      </span>
+                    ) : (
+                      <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                        <Link
+                          to={`/read/${b.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                          <span>Đọc</span>
+                        </Link>
+                      </motion.div>
+                    )}
+                    {(b.status === "partial" || b.status === "error") && (
+                      <SimpleTooltip content="Thử dịch lại các đoạn văn bản gặp sự cố">
+                        <motion.button
+                          type="button"
+                          onClick={() => retry(b)}
+                          whileHover={{ scale: 1.04 }}
+                          whileTap={{ scale: 0.96 }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          <span>Thử lại</span>
+                        </motion.button>
+                      </SimpleTooltip>
+                    )}
+                    <span className="flex-1" />
+
+                    {/* Dropdown Menu */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="p-1.5 h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
+                          aria-label="Thao tác khác"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/read/${b.id}`)}>
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          <span>Mở sách</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => retry(b)}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          <span>Dịch lại các đoạn lỗi</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setBookToDelete(b)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>Xóa sách & bản dịch</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </motion.div>
+              );
+            })}
+
+            {!books.length && !message && (
+              <motion.div
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.25 }}
+                className="col-span-full py-16 px-4 text-center border border-border border-dashed rounded-2xl bg-surface/50"
               >
-                <div className="font-semibold text-foreground truncate" title={b.filename}>
-                  {b.title}
-                </div>
-                <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-                  {b.page_count ? <span>{b.page_count} trang ·</span> : null}
-                  <BookStatusIndicator book={b} />
-                </div>
-                <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent transition-[width] duration-300"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
-                  {b.status === "parsing" ? (
-                    <span className="text-xs text-muted inline-flex items-center gap-1.5">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Chờ phân tích…</span>
-                    </span>
-                  ) : (
-                    <Link
-                      to={`/read/${b.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
-                    >
-                      <BookOpen className="h-3.5 w-3.5" />
-                      <span>Đọc</span>
-                    </Link>
-                  )}
-                  {(b.status === "partial" || b.status === "error") && (
-                    <SimpleTooltip content="Thử dịch lại các đoạn văn bản gặp sự cố">
-                      <button
-                        type="button"
-                        onClick={() => retry(b)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        <span>Thử lại</span>
-                      </button>
-                    </SimpleTooltip>
-                  )}
-                  <span className="flex-1" />
-
-                  {/* Dropdown Menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="p-1.5 h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
-                        aria-label="Thao tác khác"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => navigate(`/read/${b.id}`)}>
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        <span>Mở sách</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => retry(b)}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        <span>Dịch lại các đoạn lỗi</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setBookToDelete(b)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Xóa sách & bản dịch</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            );
-          })}
-
-          {!books.length && !message && (
-            <div className="col-span-full py-16 px-4 text-center border border-border border-dashed rounded-2xl bg-surface/50">
-              <div className="text-4xl mb-2">📚</div>
-              <h3 className="font-medium text-foreground text-sm">Chưa có cuốn sách nào</h3>
-              <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-                Bấm nút &quot;Chọn file PDF&quot; ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!
-              </p>
-              <button
-                type="button"
-                onClick={triggerFileSelect}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Chọn file PDF ngay</span>
-              </button>
-            </div>
-          )}
-        </div>
+                <div className="text-4xl mb-2">📚</div>
+                <h3 className="font-medium text-foreground text-sm">Chưa có cuốn sách nào</h3>
+                <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
+                  Bấm nút &quot;Chọn file PDF&quot; ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!
+                </p>
+                <motion.button
+                  type="button"
+                  onClick={triggerFileSelect}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Chọn file PDF ngay</span>
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
 
       {/* Dialog xác nhận xóa sách (Thay thế window.confirm hoàn toàn) */}

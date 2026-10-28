@@ -3,6 +3,7 @@ import {
   useDismiss, useFloating, useInteractions,
 } from "@floating-ui/react";
 import { AlertCircle, Loader2, Split } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block, SentenceInfo } from "../types";
@@ -102,6 +103,7 @@ export default function TranslationPopup({
   onClose,
   onHoverSentence,
 }: Props) {
+  const shouldReduceMotion = useReducedMotion();
   const { fontSize: baseSize } = useHighlightStyle();
   const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
 
@@ -192,9 +194,18 @@ export default function TranslationPopup({
 
   return (
     <FloatingPortal>
-      <div
+      <motion.div
         ref={refs.setFloating}
         style={floatingStyles}
+        initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 6 }}
+        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 4 }}
+        transition={{
+          type: "spring",
+          damping: 26,
+          stiffness: 420,
+          mass: 0.8,
+        }}
         className="z-[1000] min-w-[min(260px,calc(100vw-24px))] max-w-[calc(100vw-24px)] flex flex-col bg-surface text-foreground border border-border rounded-xl shadow-2xl backdrop-blur-sm"
         {...getFloatingProps()}
       >
@@ -205,32 +216,55 @@ export default function TranslationPopup({
               <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
             </div>
           )}
-          {ready ? (
-            <p className="m-0 whitespace-pre-wrap">
-              {sentences.map((sentText, idx) => (
-                <span
-                  key={idx}
-                  className={`popup-sentence ${activeSentenceIdx === idx ? "active" : ""}`}
-                  onMouseEnter={() => handleSentenceMouseEnter(idx)}
-                  onMouseLeave={handleSentenceMouseLeave}
-                >
-                  <FormattedText text={sentText} />{" "}
-                </span>
-              ))}
-            </p>
-          ) : block.status === "error" ? (
-            <p className="m-0 text-danger text-sm flex items-center gap-1.5">
-              <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
-              <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
-            </p>
-          ) : (
-            <p className="m-0 text-muted text-sm flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
-              <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
-            </p>
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {ready ? (
+              <motion.p
+                key="ready"
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.15 }}
+                className="m-0 whitespace-pre-wrap"
+              >
+                {sentences.map((sentText, idx) => (
+                  <span
+                    key={idx}
+                    className={`popup-sentence ${activeSentenceIdx === idx ? "active" : ""}`}
+                    onMouseEnter={() => handleSentenceMouseEnter(idx)}
+                    onMouseLeave={handleSentenceMouseLeave}
+                  >
+                    <FormattedText text={sentText} />{" "}
+                  </span>
+                ))}
+              </motion.p>
+            ) : block.status === "error" ? (
+              <motion.p
+                key="error"
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.15 }}
+                className="m-0 text-danger text-sm flex items-center gap-1.5"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+                <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
+              </motion.p>
+            ) : (
+              <motion.p
+                key="loading"
+                initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.15 }}
+                className="m-0 text-muted text-sm flex items-center gap-1.5"
+              >
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
+                <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
     </FloatingPortal>
   );
 }
