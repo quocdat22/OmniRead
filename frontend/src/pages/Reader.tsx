@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ interface Selection {
 }
 
 export default function Reader({ bookId }: { bookId: number }) {
+  const { t } = useTranslation();
   const [book, setBook] = useState<Book | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function Reader({ bookId }: { bookId: number }) {
         setDefaultAspect(v.height / v.width);
       } catch (e) {
         if (!active) return;
-        setError(e instanceof ApiError ? e.message : (e as Error).message);
+        setError(e instanceof ApiError ? e.localizedMessage : (e as Error).message);
       }
     })();
     return () => {
@@ -422,7 +424,7 @@ export default function Reader({ bookId }: { bookId: number }) {
       {!pdf && !error && (
         <div className="m-4 p-4 rounded-xl border border-border bg-surface text-muted text-sm text-center flex items-center justify-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin text-accent" />
-          <span>Đang tải dữ liệu PDF…</span>
+          <span>{t("reader.loadingPdfData")}</span>
         </div>
       )}
 
@@ -484,16 +486,16 @@ export default function Reader({ bookId }: { bookId: number }) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Keyboard className="h-5 w-5 text-accent shrink-0" />
-              <span>Bảng phím tắt & Hướng dẫn đọc</span>
+              <span>{t("reader.shortcutsDialog.title")}</span>
             </DialogTitle>
             <DialogDescription>
-              Tối ưu thao tác đọc song ngữ bằng bàn phím theo chuẩn WAI-ARIA.
+              {t("reader.shortcutsDialog.subtitle")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-sm">
             <div className="flex items-center justify-between border-b border-border pb-1.5">
-              <span>Đoạn tiếp theo / Trước đó</span>
+              <span>{t("reader.shortcutsDialog.nextPrevBlock")}</span>
               <div className="flex gap-1">
                 <kbd className="rounded border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
                   ←
@@ -505,27 +507,27 @@ export default function Reader({ bookId }: { bookId: number }) {
             </div>
 
             <div className="flex items-center justify-between border-b border-border pb-1.5">
-              <span>Đóng popup dịch hoặc hộp thoại</span>
+              <span>{t("reader.shortcutsDialog.closePopup")}</span>
               <kbd className="rounded border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
                 Esc
               </kbd>
             </div>
 
             <div className="flex items-center justify-between border-b border-border pb-1.5">
-              <span>Mở bảng trợ giúp này</span>
+              <span>{t("reader.shortcutsDialog.openHelp")}</span>
               <kbd className="rounded border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
                 ?
               </kbd>
             </div>
 
             <div className="flex items-center justify-between border-b border-border pb-1.5">
-              <span>Xem dịch thuật câu ngữ cảnh</span>
-              <span className="text-xs text-muted">Nhấp chuột vào khối văn bản</span>
+              <span>{t("reader.shortcutsDialog.viewSentenceContext")}</span>
+              <span className="text-xs text-muted">{t("reader.shortcutsDialog.clickBlock")}</span>
             </div>
 
             <div className="flex items-center justify-between pb-1.5">
-              <span>Chiếu sáng câu đối chiếu gốc</span>
-              <span className="text-xs text-muted">Rê chuột vào câu trong popup</span>
+              <span>{t("reader.shortcutsDialog.highlightSourceSentence")}</span>
+              <span className="text-xs text-muted">{t("reader.shortcutsDialog.hoverSentenceInPopup")}</span>
             </div>
           </div>
         </DialogContent>

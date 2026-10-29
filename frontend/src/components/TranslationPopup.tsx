@@ -5,6 +5,7 @@ import {
 import { AlertCircle, Loader2, Split } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import type { Block, SentenceInfo } from "../types";
 import { splitSentencesHtml } from "../utils/sentenceSplitter";
@@ -103,6 +104,7 @@ export default function TranslationPopup({
   onClose,
   onHoverSentence,
 }: Props) {
+  const { t } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
   const { fontSize: baseSize } = useHighlightStyle();
   const [activeSentenceIdx, setActiveSentenceIdx] = useState<number | null>(null);
@@ -204,6 +206,11 @@ export default function TranslationPopup({
 
   const yOffset = placement.startsWith("top") ? -6 : 6;
 
+  const getErrorMessage = () => {
+    if (!block.error_msg) return t("popup.unknownReason");
+    return t(`errors.${block.error_msg}`, { defaultValue: block.error_msg });
+  };
+
   return (
     <FloatingPortal>
       {/* 
@@ -238,7 +245,12 @@ export default function TranslationPopup({
             {block.group_size > 1 && (
               <div className="flex items-center gap-1.5 text-[11px] text-muted mb-1.5 font-medium">
                 <Split className="h-3.5 w-3.5 shrink-0" />
-                <span>Đoạn nối qua trang (mảnh {block.part_no + 1}/{block.group_size})</span>
+                <span>
+                  {t("popup.continuationPart", {
+                    part: block.part_no + 1,
+                    total: block.group_size,
+                  })}
+                </span>
               </div>
             )}
             <AnimatePresence mode="wait" initial={false}>
@@ -272,7 +284,7 @@ export default function TranslationPopup({
                   className="m-0 text-danger text-sm flex items-center gap-1.5"
                 >
                   <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
-                  <span>Dịch lỗi: {block.error_msg ?? "không rõ nguyên nhân"}</span>
+                  <span>{t("popup.translationError", { error: getErrorMessage() })}</span>
                 </motion.p>
               ) : (
                 <motion.p
@@ -284,7 +296,7 @@ export default function TranslationPopup({
                   className="m-0 text-muted text-sm flex items-center gap-1.5"
                 >
                   <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-accent" />
-                  <span>Đang dịch… bản dịch sẽ tự hiện khi xong.</span>
+                  <span>{t("popup.translating")}</span>
                 </motion.p>
               )}
             </AnimatePresence>

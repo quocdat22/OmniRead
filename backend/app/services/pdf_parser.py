@@ -24,11 +24,14 @@ from app.config import settings
 
 
 class PdfParseError(Exception):
-    pass
+    def __init__(self, message: str, code: str = "PDF_PARSE_ERROR"):
+        super().__init__(message)
+        self.code = code
 
 
 class NoTextLayerError(PdfParseError):
-    pass
+    def __init__(self, message: str = "PDF does not have a text layer"):
+        super().__init__(message, code="PDF_NO_TEXT_LAYER")
 
 
 @dataclass
@@ -681,7 +684,7 @@ def _ensure_text_layer(doc: pymupdf.Document) -> None:
     chars = sum(len(doc[i].get_text().strip()) for i in sample_idx)
     if chars / len(sample_idx) < 80:
         raise NoTextLayerError(
-            "PDF không có text layer (có vẻ là bản scan). Ứng dụng chỉ hỗ trợ PDF text-based."
+            "PDF does not have a text layer. Only text-based PDFs are supported."
         )
 
 
@@ -690,13 +693,13 @@ def parse_pdf(path: Path) -> ParsedDocument:
     try:
         doc = pymupdf.open(path)
     except Exception as e:  # noqa: BLE001
-        raise PdfParseError(f"Không mở được PDF: {e}") from e
+        raise PdfParseError(f"Cannot open PDF: {e}", code="PDF_OPEN_ERROR") from e
 
     with doc:
         if doc.needs_pass:
-            raise PdfParseError("PDF được bảo vệ bằng mật khẩu.")
+            raise PdfParseError("PDF is password protected", code="PDF_PASSWORD_PROTECTED")
         if doc.page_count == 0:
-            raise PdfParseError("PDF không có trang nào.")
+            raise PdfParseError("PDF has no pages", code="PDF_EMPTY")
         _ensure_text_layer(doc)
 
         pages: list[ParsedPage] = []

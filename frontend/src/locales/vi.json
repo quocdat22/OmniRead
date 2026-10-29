@@ -1,0 +1,220 @@
+{
+  "common": {
+    "appName": "OmniRead",
+    "library": "Thư viện",
+    "settings": "Cài đặt",
+    "close": "Đóng",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "retry": "Thử lại",
+    "read": "Đọc",
+    "reading": "Đang đọc",
+    "default": "Mặc định",
+    "open": "Mở",
+    "actions": "Thao tác khác",
+    "page": "Trang",
+    "error": "Lỗi",
+    "loading": "Đang tải…",
+    "theme": {
+      "light": "Sáng",
+      "dark": "Tối",
+      "system": "Tự động",
+      "toggleTitle": "Chế độ giao diện: {{theme}} (bấm để đổi)",
+      "ariaLabel": "Chuyển đổi giao diện"
+    },
+    "language": {
+      "vi": "Tiếng Việt",
+      "en": "English",
+      "toggleTitle": "Đổi ngôn ngữ"
+    },
+    "colors": {
+      "blue": "Xanh dương (Mặc định)",
+      "yellow": "Vàng",
+      "green": "Xanh lá",
+      "purple": "Tím",
+      "rose": "Đỏ hồng",
+      "orange": "Cam"
+    }
+  },
+  "library": {
+    "title": "Thư viện OmniRead",
+    "subtitle": "Trình đọc PDF song ngữ Anh - Việt với DeepSeek AI",
+    "backendOnline": "Backend FastAPI đang trực tuyến",
+    "aiReady": "Mô hình DeepSeek AI đã sẵn sàng dịch thuật ngữ cảnh",
+    "aiNotConfiguredTooltip": "Chưa cấu hình DEEPSEEK_API_KEY trong file backend/.env",
+    "aiNotConfiguredBadge": "Chưa cấu hình DeepSeek",
+    "settingsTooltip": "Tùy biến hiển thị highlight, padding, cỡ chữ",
+    "warningApiKeyTitle": "DeepSeek API chưa được cấu hình:",
+    "warningApiKey": "Bạn vẫn có thể tải sách và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu hình {{key}} trong file {{file}}.",
+    "uploadTitle": "Thêm tài liệu hoặc sách mới",
+    "uploadDesc": "Hỗ trợ định dạng PDF (.pdf). Hệ thống sẽ tự động trích xuất các đoạn và câu để dịch song ngữ. Kéo thả file vào đây hoặc bấm nút chọn file.",
+    "uploading": "Đang tải lên…",
+    "chooseFile": "Chọn file PDF",
+    "yourBooks": "Sách của bạn ({{count}})",
+    "emptyBooks": "Chưa có cuốn sách nào",
+    "emptyBooksDesc": "Bấm nút \"Chọn file PDF\" ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!",
+    "chooseFileNow": "Chọn file PDF ngay",
+    "status": {
+      "pending": "Chờ phân tích…",
+      "parsing": "Đang phân tích PDF…",
+      "translating": "Đang dịch {{done}}/{{total}}",
+      "done": "Đã dịch xong ({{total}} trang)",
+      "partial": "Xong, {{errors}} đoạn lỗi",
+      "error": "Lỗi: {{message}}",
+      "unknown": "không rõ"
+    },
+    "retryFailedTooltip": "Thử dịch lại các đoạn văn bản gặp sự cố",
+    "openBook": "Mở sách",
+    "retryErrors": "Dịch lại các đoạn lỗi",
+    "deleteBookAndTranslations": "Xóa sách & bản dịch",
+    "deleteDialog": {
+      "title": "Xác nhận xóa tài liệu",
+      "message": "Bạn có chắc chắn muốn xóa \"{{title}}\" cùng toàn bộ dữ liệu bản dịch và cấu trúc đoạn câu không? Hành động này không thể hoàn tác.",
+      "deleting": "Đang xóa…",
+      "confirm": "Xóa tài liệu"
+    },
+    "onlyPdfAllowed": "Chỉ hỗ trợ file định dạng PDF (.pdf).",
+    "cannotConnectBackend": "Không kết nối được backend: {{message}}"
+  },
+  "reader": {
+    "backToLibrary": "Quay về danh sách sách",
+    "analyzingPdf": "Đang phân tích PDF…",
+    "translating": "Đang dịch",
+    "translated": "Đã dịch",
+    "errorsCount": "{{count}} lỗi",
+    "retryErrorsTooltip": "Thử dịch lại các câu hoặc trang bị lỗi",
+    "retryErrors": "Dịch lại lỗi",
+    "currentPageAria": "Số trang hiện tại",
+    "zoomOut": "Thu nhỏ tỉ lệ",
+    "zoomIn": "Phóng to tỉ lệ",
+    "fitWidth": "Vừa chiều rộng màn hình",
+    "quickSettingsTooltip": "Cài đặt hiển thị nhanh",
+    "quickSettings": "Cài đặt nhanh",
+    "advancedSettings": "Nâng cao",
+    "blockHighlightStyle": "Kiểu đánh dấu khối:",
+    "styleBar": "Vạch sáng",
+    "styleBackground": "Tô nền",
+    "sentenceHighlightStyle": "Sáng câu đối chiếu:",
+    "bracketStyle": "Dấu ngoặc 「」",
+    "blockStyle": "Khối phủ",
+    "colorLabel": "Màu sắc:",
+    "popupFontSize": "Cỡ chữ popup:",
+    "shortcutsTooltip": "Phím tắt & Hướng dẫn (?)",
+    "shortcutsAria": "Phím tắt trợ năng",
+    "loadingPdfData": "Đang tải dữ liệu PDF…",
+    "shortcutsDialog": {
+      "title": "Bảng phím tắt & Hướng dẫn đọc",
+      "subtitle": "Tối ưu thao tác đọc song ngữ bằng bàn phím theo chuẩn WAI-ARIA.",
+      "nextPrevBlock": "Đoạn tiếp theo / Trước đó",
+      "closePopup": "Đóng popup dịch hoặc hộp thoại",
+      "openHelp": "Mở bảng trợ giúp này",
+      "viewSentenceContext": "Xem dịch thuật câu ngữ cảnh",
+      "clickBlock": "Nhấp chuột vào khối văn bản",
+      "highlightSourceSentence": "Chiếu sáng câu đối chiếu gốc",
+      "hoverSentenceInPopup": "Rê chuột vào câu trong popup"
+    }
+  },
+  "popup": {
+    "continuationPart": "Đoạn nối qua trang (mảnh {{part}}/{{total}})",
+    "translationError": "Dịch lỗi: {{error}}",
+    "unknownReason": "không rõ nguyên nhân",
+    "translating": "Đang dịch… bản dịch sẽ tự hiện khi xong."
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "subtitle": "Tùy biến hiển thị và trải nghiệm đọc sách thông minh",
+    "tabAppearance": "Giao diện & Highlight",
+    "tabTranslation": "Dịch thuật & AI",
+    "tabShortcuts": "Phím tắt & Trợ năng",
+    "themeSection": {
+      "title": "🎨 Chế độ hiển thị (Theme)",
+      "desc": "Chọn giao diện sáng, tối hoặc tự động chuyển đổi theo cài đặt hệ điều hành của bạn.",
+      "light": "Giao diện Sáng",
+      "lightDesc": "Tối ưu cho ban ngày hoặc môi trường đủ sáng",
+      "dark": "Giao diện Tối",
+      "darkDesc": "Dịu mắt khi đọc sách vào ban đêm",
+      "system": "Theo hệ thống",
+      "systemDesc": "Tự động đồng bộ theo chế độ của thiết bị"
+    },
+    "highlightSection": {
+      "title": "Kiểu đánh dấu vùng chọn (Block Highlight)",
+      "desc": "Chọn cách khối/đoạn văn bản được làm nổi bật khi bạn click để xem bản dịch qua popup.",
+      "bar": "Vạch sáng bên trái",
+      "background": "Tô nền đoạn văn",
+      "border": "Đóng khung viền"
+    },
+    "sentenceSection": {
+      "title": "Kiểu sáng câu đối chiếu gốc khi hover:",
+      "desc": "Chọn cách câu văn trong tài liệu gốc sáng lên khi bạn rê chuột vào từng câu dịch trong popup.",
+      "bracketTitle": "Dấu ngoặc góc 「 … 」 (Khuyên dùng)",
+      "bracketDesc": "Đánh dấu tinh tế ở đầu và cuối câu, giữ trang sách sạch sẽ và không che văn bản gốc.",
+      "blockTitle": "Khối phủ (Block Highlight)",
+      "blockDesc": "Tô nền sáng và viền màu bao phủ toàn bộ câu văn tương ứng trong tài liệu gốc."
+    },
+    "colorSection": {
+      "title": "Màu sắc nổi bật (Highlight Color):",
+      "desc": "Màu sắc đánh dấu khối và ký hiệu đối chiếu câu. Ký hiệu câu sẽ đồng bộ theo tông màu này để tạo sự thống nhất.",
+      "ariaColor": "Màu: {{name}}"
+    },
+    "paddingSection": {
+      "title": "Khoảng đệm (Padding):",
+      "default": "Mặc định",
+      "aria": "Khoảng đệm padding",
+      "tickDefault": "4px (Mặc định)"
+    },
+    "fontSizeSection": {
+      "title": "Cỡ chữ nội dung popup:",
+      "default": "Mặc định",
+      "aria": "Cỡ chữ nội dung popup",
+      "tickDefault": "15px (Mặc định)"
+    },
+    "preview": {
+      "title": "Xem trước (Live Preview)",
+      "hoverHint": "Rê chuột vào câu ở popup để thử nghiệm đối chiếu câu",
+      "mockSentences": [
+        "OmniRead được thiết kế để giúp việc đọc tài liệu ngoại ngữ trở nên tự nhiên và dễ dàng.",
+        "Bằng cách nhấp vào bất kỳ khối văn bản nào, bạn sẽ nhận được bản dịch ngữ cảnh tức thì mà vẫn giữ nguyên luồng đọc ban đầu."
+      ]
+    },
+    "aiConfigSection": {
+      "title": "Cấu hình Dịch thuật & Mô hình DeepSeek",
+      "desc": "Thông tin và cơ chế xử lý song ngữ thông minh trong OmniRead.",
+      "item1Title": "1. Khóa bảo mật DeepSeek API Key",
+      "item1Desc": "OmniRead sử dụng mô hình DeepSeek qua endpoint OpenAI-compatible để dịch thuật câu văn chính xác, tự nhiên theo ngữ cảnh học thuật và sách chuyên khảo.",
+      "item1Config": "Khóa được cấu hình an toàn ở phía máy chủ trong file {{file}}:",
+      "item2Title": "2. Cơ chế đối chiếu câu chuẩn xác (@floating-ui)",
+      "item2Desc": "Hệ thống tự động phân tách câu văn bản gốc và câu bản dịch tương ứng. Khi bạn rê chuột vào bất kỳ câu dịch nào trong popup, văn bản gốc trên trang sách sẽ được chiếu sáng ngay lập tức."
+    },
+    "shortcutsSection": {
+      "title": "Phím tắt & Khả năng truy cập (Accessibility)",
+      "desc": "Điều hướng nhanh chóng bằng bàn phím theo tiêu chuẩn WAI-ARIA.",
+      "openHelp": "Mở bảng phím tắt trợ năng trong trình đọc",
+      "closePopup": "Đóng popup dịch hoặc hộp thoại",
+      "adjustSlider": "Điều chỉnh Slider / Chọn Tab",
+      "openMenu": "Mở menu thao tác / Kích hoạt"
+    }
+  },
+  "errors": {
+    "INVALID_FILE_TYPE": "Chỉ hỗ trợ file định dạng PDF (.pdf).",
+    "INVALID_PDF_FORMAT": "Tệp tải lên không phải là file PDF hợp lệ.",
+    "FILE_TOO_LARGE": "Kích thước tệp vượt quá giới hạn cho phép.",
+    "FILE_EMPTY": "Tệp tải lên bị rỗng.",
+    "BOOK_ALREADY_EXISTS": "Sách này đã được tải lên trước đó.",
+    "BOOK_NOT_FOUND": "Không tìm thấy cuốn sách yêu cầu.",
+    "FILE_NOT_FOUND": "Không tìm thấy tệp PDF của sách.",
+    "BOOK_PARSING": "Sách đang trong quá trình phân tích, vui lòng chờ trong giây lát.",
+    "PAGE_NOT_FOUND": "Trang sách không tồn tại.",
+    "PDF_NO_TEXT_LAYER": "PDF không có text layer (có vẻ là bản scan). Ứng dụng chỉ hỗ trợ PDF text-based.",
+    "PDF_OPEN_ERROR": "Không mở được tệp PDF.",
+    "PDF_PASSWORD_PROTECTED": "PDF được bảo vệ bằng mật khẩu.",
+    "PDF_EMPTY": "PDF không chứa trang nào.",
+    "NO_PARAGRAPHS_FOUND": "Không tìm thấy đoạn văn nào trong PDF.",
+    "DEEPSEEK_KEY_MISSING": "Chưa cấu hình DEEPSEEK_API_KEY trong file backend/.env.",
+    "DEEPSEEK_QUOTA_EXCEEDED": "Tài khoản DeepSeek đã hết số dư (402).",
+    "DEEPSEEK_AUTH_ERROR": "API key không hợp lệ hoặc không có quyền truy cập.",
+    "TRANSLATION_EMPTY": "Mô hình AI trả về nội dung rỗng.",
+    "TRANSLATION_FAILED": "Không thể dịch đoạn văn bản.",
+    "TRANSLATION_FATAL": "Lỗi nghiêm trọng khi gọi dịch thuật AI.",
+    "INTERNAL_ERROR": "Đã xảy ra lỗi nội bộ không mong đợi."
+  }
+}

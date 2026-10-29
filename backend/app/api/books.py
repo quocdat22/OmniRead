@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.config import settings
 from app.db import block_to_dict, connect, fetch_book, fetch_books
+from app.errors import ErrorCode, api_error
 from app.services.worker import manager
 
 router = APIRouter()
@@ -26,14 +27,14 @@ async def _save_upload(file: UploadFile) -> tuple[Path, str]:
         with tmp.open("wb") as f:
             while chunk := await file.read(1024 * 1024):
                 if size == 0 and not chunk.startswith(b"%PDF-"):
-                    raise HTTPException(400, "File không phải PDF hợp lệ")
+                    raise api_error(400, ErrorCode.INVALID_PDF_FORMAT, "File is not a valid PDF")
                 size += len(chunk)
                 if size > limit:
-                    raise HTTPException(413, f"File vượt quá {settings.max_upload_mb} MB")
+                    raise api_error(413, ErrorCode.FILE_TOO_LARGE, f"File exceeds {settings.max_upload_mb} MB")
                 h.update(chunk)
                 f.write(chunk)
         if size == 0:
-            raise HTTPException(400, "File rỗng")
+            raise api_error(400, ErrorCode.FILE_EMPTY, "File is empty")
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
@@ -44,7 +45,7 @@ async def _save_upload(file: UploadFile) -> tuple[Path, str]:
 async def upload_book(file: UploadFile = File(...)):
     filename = file.filename or "book.pdf"
     if not filename.lower().endswith(".pdf"):
-        raise HTTPException(400, "Chỉ hỗ trợ file PDF")
+        raise api_error(400, ErrorCode.INVALID_FILE_TYPE, "Only PDF files are supported")
 
     tmp, digest = await _save_upload(file)
     async with connect() as db:
@@ -52,7 +53,12 @@ async def upload_book(file: UploadFile = File(...)):
         existing = await cur.fetchone()
         if existing:
             tmp.unlink(missing_ok=True)
-            raise HTTPException(409, detail={"message": "Sách này đã được upload", "book_id": existing["id"]})
+            raise api_error(
+                409,
+                ErrorCode.BOOK_ALREADY_EXISTS,
+                "Book has already been uploaded",
+                book_id=existing["id"],
+            )
 
         tmp.replace(settings.pdf_dir / f"{digest}.pdf")
         cur = await db.execute(
@@ -79,7 +85,7 @@ async def get_book(book_id: int):
     async with connect() as db:
         book = await fetch_book(db, book_id)
     if book is None:
-        raise HTTPException(404, "Không tìm thấy sách")
+        raise api_error(404, ErrorCode.BOOK_NOT_FOUND, "Book not found")
     return book
 
 
@@ -90,7 +96,7 @@ async def get_book_file(book_id: int):
         row = await cur.fetchone()
     path = settings.pdf_dir / f"{row['file_hash']}.pdf" if row else None
     if path is None or not path.exists():
-        raise HTTPException(404, "Không tìm thấy file")
+        raise api_error(404, ErrorCode.FILE_NOT_FOUND, "File not found")
     return FileResponse(path, media_type="application/pdf")
 
 
@@ -99,13 +105,13 @@ async def get_blocks(book_id: int, page: int = Query(..., ge=1)):
     async with connect() as db:
         book = await fetch_book(db, book_id)
         if book is None:
-            raise HTTPException(404, "Không tìm thấy sách")
+            raise api_error(404, ErrorCode.BOOK_NOT_FOUND, "Book not found")
         if book["status"] == "parsing":
-            raise HTTPException(409, "Sách đang được xử lý, thử lại sau")
+            raise api_error(409, ErrorCode.BOOK_PARSING, "Book is being processed, please try again later")
         cur = await db.execute("SELECT width, height FROM pages WHERE book_id = ? AND page = ?", (book_id, page))
         pg = await cur.fetchone()
         if pg is None:
-            raise HTTPException(404, "Trang không tồn tại")
+            raise api_error(404, ErrorCode.PAGE_NOT_FOUND, "Page not found")
         cur = await db.execute(
             """
             SELECT 
@@ -169,9 +175,9 @@ async def retry_book(book_id: int):
     async with connect() as db:
         book = await fetch_book(db, book_id)
         if book is None:
-            raise HTTPException(404, "Không tìm thấy sách")
+            raise api_error(404, ErrorCode.BOOK_NOT_FOUND, "Book not found")
         if book["status"] == "parsing":
-            raise HTTPException(409, "Sách đang được parse")
+            raise api_error(409, ErrorCode.BOOK_PARSING, "Book is being parsed")
         await db.execute(
             "UPDATE blocks SET status = 'pending', error_msg = NULL WHERE book_id = ? AND status = 'error'",
             (book_id,),
@@ -189,7 +195,7 @@ async def delete_book(book_id: int):
         cur = await db.execute("SELECT file_hash FROM books WHERE id = ?", (book_id,))
         row = await cur.fetchone()
         if row is None:
-            raise HTTPException(404, "Không tìm thấy sách")
+            raise api_error(404, ErrorCode.BOOK_NOT_FOUND, "Book not found")
         await db.execute("DELETE FROM books WHERE id = ?", (book_id,))  # cascade pages + blocks
         await db.commit()
     (settings.pdf_dir / f"{row['file_hash']}.pdf").unlink(missing_ok=True)

@@ -13,6 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   Popover,
@@ -31,6 +32,7 @@ import type {
   Progress,
   SentenceHighlightStyle,
 } from "../types";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export interface ReaderToolbarProps {
   bookTitle?: string;
@@ -83,6 +85,7 @@ export default function ReaderToolbar({
   setPopupFontSize,
   onOpenShortcuts,
 }: ReaderToolbarProps) {
+  const { t } = useTranslation();
   const [jumpInput, setJumpInput] = useState(String(currentPage));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -110,17 +113,17 @@ export default function ReaderToolbar({
     >
       {/* ================= Cụm Trái: Điều hướng & Tiêu đề ================= */}
       <div className="flex items-center gap-2 min-w-0">
-        <SimpleTooltip content="Quay về thư viện">
+        <SimpleTooltip content={t("reader.backToLibrary")}>
           <Link
             to="/"
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
           >
             <ArrowLeft className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Thư viện</span>
+            <span className="hidden sm:inline">{t("common.library")}</span>
           </Link>
         </SimpleTooltip>
 
-        <SimpleTooltip content={isSidebarOpen ? "Đóng thanh bên" : "Mở thanh bên"}>
+        <SimpleTooltip content={isSidebarOpen ? t("reader.closeSidebar", { defaultValue: "Đóng thanh bên" }) : t("reader.openSidebar", { defaultValue: "Mở thanh bên" })}>
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -128,7 +131,7 @@ export default function ReaderToolbar({
               "p-1.5 rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:border-accent transition-colors cursor-pointer",
               isSidebarOpen && "border-accent text-accent bg-accent/10"
             )}
-            aria-label="Thanh bên"
+            aria-label="Sidebar"
           >
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -146,7 +149,7 @@ export default function ReaderToolbar({
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {/* Số trang hiện tại */}
         <div className="flex items-center gap-1.5 text-xs text-muted font-medium bg-surface-hover/60 border border-border px-2 py-1 rounded-lg">
-          <span className="hidden sm:inline text-muted/80">Trang</span>
+          <span className="hidden sm:inline text-muted/80">{t("common.page")}</span>
           <input
             type="number"
             min={1}
@@ -160,7 +163,7 @@ export default function ReaderToolbar({
               }
             }}
             className="w-10 sm:w-11 text-center font-semibold bg-background border border-border/80 rounded py-0.5 text-foreground focus:outline-hidden focus:border-accent text-xs"
-            aria-label="Số trang hiện tại"
+            aria-label={t("reader.currentPageAria")}
           />
           <span className="text-muted/60">/</span>
           <span className="text-foreground font-semibold">
@@ -170,40 +173,40 @@ export default function ReaderToolbar({
 
         {/* Cụm Zoom Segmented Pill */}
         <div className="flex items-center rounded-lg border border-border bg-surface text-xs overflow-hidden shadow-2xs">
-          <SimpleTooltip content="Thu nhỏ">
+          <SimpleTooltip content={t("reader.zoomOut")}>
             <button
               type="button"
               className="p-1.5 hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
               onClick={() => onChangeZoom(zoom - 0.1)}
-              aria-label="Thu nhỏ"
+              aria-label={t("reader.zoomOut")}
             >
               <Minus className="h-3.5 w-3.5" />
             </button>
           </SimpleTooltip>
 
-          <span className="w-10 text-center font-medium text-muted text-xs select-none">
+          <span className="w-10 sm:w-12 text-center font-medium text-foreground select-none px-1">
             {Math.round(zoom * 100)}%
           </span>
 
-          <SimpleTooltip content="Phóng to">
+          <SimpleTooltip content={t("reader.zoomIn")}>
             <button
               type="button"
               className="p-1.5 hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer"
               onClick={() => onChangeZoom(zoom + 0.1)}
-              aria-label="Phóng to"
+              aria-label={t("reader.zoomIn")}
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
           </SimpleTooltip>
 
-          <div className="w-[1px] h-4 bg-border" />
+          <div className="w-[1px] h-4 bg-border hidden sm:block" />
 
-          <SimpleTooltip content="Vừa chiều rộng màn hình">
+          <SimpleTooltip content={t("reader.fitWidth")}>
             <button
               type="button"
               className="p-1.5 hover:bg-surface-hover text-muted hover:text-foreground transition-colors cursor-pointer hidden sm:flex items-center justify-center"
               onClick={() => onChangeZoom((window.innerWidth - 32) / 820)}
-              aria-label="Vừa chiều rộng"
+              aria-label={t("reader.fitWidth")}
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
@@ -215,35 +218,35 @@ export default function ReaderToolbar({
       <div className="flex items-center gap-2 shrink-0">
         {/* Nút dịch lại lỗi nếu có */}
         {canRetry && (
-          <SimpleTooltip content="Thử dịch lại các câu hoặc trang bị lỗi">
+          <SimpleTooltip content={t("reader.retryErrorsTooltip")}>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer shadow-2xs"
               onClick={onRetry}
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Dịch lại lỗi</span>
+              <span className="hidden md:inline">{t("reader.retryErrors")}</span>
             </button>
           </SimpleTooltip>
         )}
 
         {/* Trạng thái dịch gọn */}
         {!progress ? null : progress.status === "parsing" ? (
-          <SimpleTooltip content="Đang phân tích cấu trúc PDF…">
+          <SimpleTooltip content={t("reader.analyzingPdf")}>
             <div className="flex items-center gap-1.5 text-xs text-muted bg-surface-hover/60 px-2 py-1 rounded-lg border border-border">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-accent shrink-0" />
-              <span className="hidden md:inline">Đang đọc PDF…</span>
+              <span className="hidden md:inline">{t("reader.analyzingPdf")}</span>
             </div>
           </SimpleTooltip>
         ) : progress.status === "error" ? (
-          <SimpleTooltip content={progress.error_msg || "Có lỗi phân tích"}>
+          <SimpleTooltip content={progress.error_msg ? t("errors." + progress.error_msg, { defaultValue: progress.error_msg }) : t("common.error")}>
             <div className="flex items-center gap-1 text-xs text-danger bg-danger/10 px-2 py-1 rounded-lg border border-danger/20 font-medium">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden md:inline">Lỗi dịch</span>
+              <span className="hidden md:inline">{t("common.error")}</span>
             </div>
           </SimpleTooltip>
         ) : progress.status === "translating" ? (
-          <SimpleTooltip content={`Đang dịch trang ${pagesDone}/${pagesTotal}`}>
+          <SimpleTooltip content={`${t("reader.translating")} ${pagesDone}/${pagesTotal}`}>
             <div className="flex items-center gap-1.5 text-xs text-muted bg-surface-hover/60 px-2 py-1 rounded-lg border border-border font-medium">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-accent shrink-0" />
               <span className="hidden sm:inline">
@@ -252,7 +255,7 @@ export default function ReaderToolbar({
             </div>
           </SimpleTooltip>
         ) : (
-          <SimpleTooltip content={`Đã dịch ${pagesDone}/${pagesTotal} trang`}>
+          <SimpleTooltip content={`${t("reader.translated")} ${pagesDone}/${pagesTotal}`}>
             <div className="hidden sm:flex items-center gap-1 text-xs text-muted bg-surface-hover/60 px-2 py-1 rounded-lg border border-border">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
               <span className="hidden md:inline font-medium">
@@ -264,7 +267,7 @@ export default function ReaderToolbar({
 
         {/* Menu Cài Đặt Hợp Nhất (Unified Settings Menu) */}
         <Popover open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <SimpleTooltip content="Cài đặt đọc & giao diện">
+          <SimpleTooltip content={t("reader.quickSettingsTooltip")}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -272,7 +275,7 @@ export default function ReaderToolbar({
                   "p-1.5 rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:border-accent transition-colors cursor-pointer",
                   isSettingsOpen && "border-accent text-accent bg-accent/10"
                 )}
-                aria-label="Cài đặt đọc"
+                aria-label={t("reader.quickSettings")}
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -284,14 +287,14 @@ export default function ReaderToolbar({
               {/* Header Cài đặt */}
               <div className="flex items-center justify-between border-b border-border pb-2.5">
                 <span className="font-semibold text-sm text-foreground">
-                  Cài đặt đọc
+                  {t("reader.quickSettings")}
                 </span>
                 <Link
                   to="/settings"
                   className="text-xs text-accent hover:underline inline-flex items-center gap-0.5"
                   onClick={() => setIsSettingsOpen(false)}
                 >
-                  <span>Nâng cao</span>
+                  <span>{t("reader.advancedSettings")}</span>
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
@@ -299,13 +302,13 @@ export default function ReaderToolbar({
               {/* Chế độ giao diện (Theme) */}
               <div>
                 <div className="text-xs text-muted mb-1.5 font-medium">
-                  Giao diện:
+                  {t("settings.themeSection.title")}:
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
-                    { id: "light", label: "☀️ Sáng" },
-                    { id: "dark", label: "🌙 Tối" },
-                    { id: "system", label: "💻 Tự động" },
+                    { id: "light", label: `☀️ ${t("settings.themeSection.light", { defaultValue: "Sáng" })}` },
+                    { id: "dark", label: `🌙 ${t("settings.themeSection.dark", { defaultValue: "Tối" })}` },
+                    { id: "system", label: `💻 ${t("settings.themeSection.system", { defaultValue: "Tự động" })}` },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -326,13 +329,13 @@ export default function ReaderToolbar({
               {/* Kiểu highlight khối */}
               <div>
                 <div className="text-xs text-muted mb-1.5 font-medium">
-                  Kiểu đánh dấu khối:
+                  {t("reader.blockHighlightStyle")}
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 text-xs">
                   {[
-                    { id: "bar", label: "Vạch sáng" },
-                    { id: "background", label: "Tô nền" },
-                    { id: "border", label: "Khung" },
+                    { id: "bar", label: t("reader.styleBar") },
+                    { id: "background", label: t("reader.styleBackground") },
+                    { id: "border", label: t("settings.highlightSection.border") },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -355,12 +358,12 @@ export default function ReaderToolbar({
               {/* Kiểu câu đối chiếu */}
               <div>
                 <div className="text-xs text-muted mb-1.5 font-medium">
-                  Sáng câu đối chiếu:
+                  {t("reader.sentenceHighlightStyle")}
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 text-xs">
                   {[
-                    { id: "bracket", label: "Dấu ngoặc 「」" },
-                    { id: "block", label: "Khối phủ" },
+                    { id: "bracket", label: t("reader.bracketStyle") },
+                    { id: "block", label: t("reader.blockStyle") },
                   ].map((item) => (
                     <button
                       key={item.id}
@@ -383,32 +386,35 @@ export default function ReaderToolbar({
               {/* Bảng màu */}
               <div>
                 <div className="text-xs text-muted mb-2 font-medium">
-                  Màu sắc:{" "}
-                  <strong className="text-foreground">{colorPreset.name}</strong>
+                  {t("reader.colorLabel")}{" "}
+                  <strong className="text-foreground">{t("common.colors." + colorPreset.id, { defaultValue: colorPreset.name })}</strong>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  {COLOR_PRESETS.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${
-                        highlightColor === c.id
-                          ? "border-foreground scale-110 shadow-xs ring-2 ring-accent/30"
-                          : "border-transparent"
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                      onClick={() => setHighlightColor(c.id)}
-                      title={c.name}
-                      aria-label={c.name}
-                    />
-                  ))}
+                  {COLOR_PRESETS.map((c) => {
+                    const colorName = t("common.colors." + c.id, { defaultValue: c.name });
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${
+                          highlightColor === c.id
+                            ? "border-foreground scale-110 shadow-xs ring-2 ring-accent/30"
+                            : "border-transparent"
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                        onClick={() => setHighlightColor(c.id)}
+                        title={colorName}
+                        aria-label={colorName}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Slider cỡ chữ popup */}
               <div className="pt-1">
                 <div className="flex justify-between text-xs text-muted mb-2">
-                  <span className="font-medium">Cỡ chữ popup:</span>
+                  <span className="font-medium">{t("reader.popupFontSize")}</span>
                   <span className="font-semibold text-foreground">
                     {popupFontSize}px
                   </span>
@@ -419,7 +425,7 @@ export default function ReaderToolbar({
                   step={1}
                   value={[popupFontSize]}
                   onValueChange={(val) => setPopupFontSize(val[0])}
-                  aria-label="Cỡ chữ popup"
+                  aria-label={t("reader.popupFontSize")}
                 />
               </div>
 
@@ -435,7 +441,7 @@ export default function ReaderToolbar({
                 >
                   <span className="flex items-center gap-1.5">
                     <Keyboard className="h-3.5 w-3.5 text-muted" />
-                    <span>Phím tắt & Hướng dẫn</span>
+                    <span>{t("reader.shortcutsTooltip")}</span>
                   </span>
                   <span className="text-[10px] font-mono text-muted bg-surface-hover px-1.5 py-0.5 rounded border border-border">
                     ?
@@ -445,6 +451,9 @@ export default function ReaderToolbar({
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Nút chuyển đổi ngôn ngữ */}
+        <LanguageSwitcher />
       </div>
     </header>
   );

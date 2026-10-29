@@ -26,7 +26,7 @@ export interface ColorPreset {
 export const COLOR_PRESETS: ColorPreset[] = [
   {
     id: "blue",
-    name: "Xanh dương (Mặc định)",
+    name: "Blue",
     hex: "#2563eb",
     rgb: "37, 99, 235",
     sentenceHex: "#1d4ed8",
@@ -34,7 +34,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   },
   {
     id: "yellow",
-    name: "Vàng",
+    name: "Yellow",
     hex: "#eab308",
     rgb: "234, 179, 8",
     sentenceHex: "#d97706",
@@ -42,7 +42,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   },
   {
     id: "green",
-    name: "Xanh lá",
+    name: "Green",
     hex: "#16a34a",
     rgb: "22, 163, 74",
     sentenceHex: "#15803d",
@@ -50,7 +50,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   },
   {
     id: "purple",
-    name: "Tím",
+    name: "Purple",
     hex: "#9333ea",
     rgb: "147, 51, 234",
     sentenceHex: "#7e22ce",
@@ -58,7 +58,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   },
   {
     id: "orange",
-    name: "Cam",
+    name: "Orange",
     hex: "#f97316",
     rgb: "249, 115, 22",
     sentenceHex: "#ea580c",
@@ -66,7 +66,7 @@ export const COLOR_PRESETS: ColorPreset[] = [
   },
   {
     id: "rose",
-    name: "Đỏ hồng",
+    name: "Rose",
     hex: "#e11d48",
     rgb: "225, 29, 72",
     sentenceHex: "#be123c",

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +36,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import ThemeToggle from "../components/ThemeToggle";
 import type { Book } from "../types";
 
 function BookStatusIndicator({ book }: { book: Book }) {
+  const { t } = useTranslation();
   const totalPages = book.pages_total ?? book.page_count;
   const donePages =
     book.pages_done ?? (book.status === "done" ? totalPages : 0);
@@ -48,41 +51,46 @@ function BookStatusIndicator({ book }: { book: Book }) {
       return (
         <span className="inline-flex items-center gap-1.5 text-accent">
           <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-          <span>Đang phân tích PDF…</span>
+          <span>{t("library.status.parsing")}</span>
         </span>
       );
     case "translating":
       return (
         <span className="inline-flex items-center gap-1.5 text-accent">
           <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-          <span>Đang dịch {donePages}/{totalPages}</span>
+          <span>{t("library.status.translating", { done: donePages, total: totalPages })}</span>
         </span>
       );
     case "done":
       return (
         <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-          <span>Đã dịch xong ({totalPages} trang)</span>
+          <span>{t("library.status.done", { total: totalPages })}</span>
         </span>
       );
     case "partial":
       return (
         <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span>Xong, {book.errors} đoạn lỗi</span>
+          <span>{t("library.status.partial", { errors: book.errors })}</span>
         </span>
       );
-    case "error":
+    case "error": {
+      const errMsg = book.error_msg
+        ? t(`errors.${book.error_msg}`, { defaultValue: book.error_msg })
+        : t("library.status.unknown");
       return (
         <span className="inline-flex items-center gap-1.5 text-danger">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span>Lỗi: {book.error_msg ?? "không rõ"}</span>
+          <span>{t("library.status.error", { message: errMsg })}</span>
         </span>
       );
+    }
   }
 }
 
 export default function Library() {
+  const { t } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
   const [books, setBooks] = useState<Book[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -107,9 +115,9 @@ export default function Library() {
       if (healthStatus) setHealth(healthStatus);
       setMessage(null);
     } catch (e) {
-      setMessage(`Không kết nối được backend: ${(e as Error).message}`);
+      setMessage(t("library.cannotConnectBackend", { message: (e as Error).message }));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => void load(), [load]);
 
@@ -119,14 +127,14 @@ export default function Library() {
   );
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(load, 2000);
-    return () => clearInterval(t);
+    const tInterval = setInterval(load, 2000);
+    return () => clearInterval(tInterval);
   }, [active, load]);
 
   async function upload(file: File | undefined) {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf")) {
-      return setMessage("Chỉ hỗ trợ file định dạng PDF (.pdf).");
+      return setMessage(t("library.onlyPdfAllowed"));
     }
     setUploading(true);
     setMessage(null);
@@ -221,14 +229,14 @@ export default function Library() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Thư viện OmniRead</h1>
-          <p className="text-sm text-muted mt-0.5">Trình đọc PDF song ngữ Anh - Việt với DeepSeek AI</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("library.title")}</h1>
+          <p className="text-sm text-muted mt-0.5">{t("library.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {health && (
             <div className="flex items-center gap-2">
-              <SimpleTooltip content="Backend FastAPI đang trực tuyến">
+              <SimpleTooltip content={t("library.backendOnline")}>
                 <span
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                 >
@@ -237,7 +245,7 @@ export default function Library() {
                 </span>
               </SimpleTooltip>
               {health.translator_configured ? (
-                <SimpleTooltip content="Mô hình DeepSeek AI đã sẵn sàng dịch thuật ngữ cảnh">
+                <SimpleTooltip content={t("library.aiReady")}>
                   <span
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
                   >
@@ -246,27 +254,28 @@ export default function Library() {
                   </span>
                 </SimpleTooltip>
               ) : (
-                <SimpleTooltip content="Chưa cấu hình DEEPSEEK_API_KEY trong file backend/.env">
+                <SimpleTooltip content={t("library.aiNotConfiguredTooltip")}>
                   <span
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                   >
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    Chưa cấu hình DeepSeek
+                    {t("library.aiNotConfiguredBadge")}
                   </span>
                 </SimpleTooltip>
               )}
             </div>
           )}
 
+          <LanguageSwitcher />
           <ThemeToggle />
 
-          <SimpleTooltip content="Tùy biến hiển thị highlight, padding, cỡ chữ">
+          <SimpleTooltip content={t("library.settingsTooltip")}>
             <Link
               to="/settings"
               className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
             >
               <SettingsIcon className="h-4 w-4" />
-              <span>Cài đặt</span>
+              <span>{t("common.settings")}</span>
             </Link>
           </SimpleTooltip>
         </div>
@@ -276,9 +285,8 @@ export default function Library() {
         <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-sm leading-relaxed flex items-start gap-2.5">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div>
-            <strong>DeepSeek API chưa được cấu hình:</strong> Bạn vẫn có thể tải sách
-            và đọc PDF nguyên bản. Để kích hoạt tính năng dịch tự động song ngữ, hãy cấu
-            hình <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">DEEPSEEK_API_KEY</code> trong file <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">backend/.env</code>.
+            <strong>{t("library.warningApiKeyTitle")}</strong>{" "}
+            {t("library.warningApiKey", { key: "DEEPSEEK_API_KEY", file: "backend/.env" })}
           </div>
         </div>
       )}
@@ -309,10 +317,10 @@ export default function Library() {
           </div>
           <div>
             <h2 className="text-base font-semibold text-foreground">
-              Thêm tài liệu hoặc sách mới
+              {t("library.uploadTitle")}
             </h2>
             <p className="text-xs sm:text-sm text-muted mt-0.5">
-              Hỗ trợ định dạng PDF (.pdf). Hệ thống sẽ tự động trích xuất các đoạn và câu để dịch song ngữ. Kéo thả file vào đây hoặc bấm nút chọn file.
+              {t("library.uploadDesc")}
             </p>
           </div>
         </div>
@@ -333,12 +341,12 @@ export default function Library() {
           {uploading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin text-white" />
-              <span>Đang tải lên…</span>
+              <span>{t("library.uploading")}</span>
             </>
           ) : (
             <>
               <Plus className="h-4 w-4" />
-              <span>Chọn file PDF</span>
+              <span>{t("library.chooseFile")}</span>
             </>
           )}
         </motion.button>
@@ -363,7 +371,7 @@ export default function Library() {
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
-            Sách của bạn ({books.length})
+            {t("library.yourBooks", { count: books.length })}
           </h2>
         </div>
 
@@ -400,7 +408,7 @@ export default function Library() {
                     {b.title}
                   </div>
                   <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-                    {b.page_count ? <span>{b.page_count} trang ·</span> : null}
+                    {b.page_count ? <span>{b.page_count} {t("common.page").toLowerCase()} ·</span> : null}
                     <BookStatusIndicator book={b} />
                   </div>
                   <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
@@ -415,7 +423,7 @@ export default function Library() {
                     {b.status === "parsing" ? (
                       <span className="text-xs text-muted inline-flex items-center gap-1.5">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Chờ phân tích…</span>
+                        <span>{t("library.status.pending")}</span>
                       </span>
                     ) : (
                       <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
@@ -424,12 +432,12 @@ export default function Library() {
                           className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
                         >
                           <BookOpen className="h-3.5 w-3.5" />
-                          <span>Đọc</span>
+                          <span>{t("common.read")}</span>
                         </Link>
                       </motion.div>
                     )}
                     {(b.status === "partial" || b.status === "error") && (
-                      <SimpleTooltip content="Thử dịch lại các đoạn văn bản gặp sự cố">
+                      <SimpleTooltip content={t("library.retryFailedTooltip")}>
                         <motion.button
                           type="button"
                           onClick={() => retry(b)}
@@ -438,7 +446,7 @@ export default function Library() {
                           className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
-                          <span>Thử lại</span>
+                          <span>{t("common.retry")}</span>
                         </motion.button>
                       </SimpleTooltip>
                     )}
@@ -450,7 +458,7 @@ export default function Library() {
                         <button
                           type="button"
                           className="p-1.5 h-8 w-8 rounded-lg flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-hover transition-colors cursor-pointer"
-                          aria-label="Thao tác khác"
+                          aria-label={t("common.actions")}
                         >
                           <MoreVertical className="h-4 w-4" />
                         </button>
@@ -458,11 +466,11 @@ export default function Library() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/read/${b.id}`)}>
                           <BookOpen className="mr-2 h-4 w-4" />
-                          <span>Mở sách</span>
+                          <span>{t("library.openBook")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => retry(b)}>
                           <RefreshCw className="mr-2 h-4 w-4" />
-                          <span>Dịch lại các đoạn lỗi</span>
+                          <span>{t("library.retryErrors")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -470,7 +478,7 @@ export default function Library() {
                           onClick={() => setBookToDelete(b)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Xóa sách & bản dịch</span>
+                          <span>{t("library.deleteBookAndTranslations")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -488,9 +496,9 @@ export default function Library() {
                 className="col-span-full py-16 px-4 text-center border border-border border-dashed rounded-2xl bg-surface/50"
               >
                 <div className="text-4xl mb-2">📚</div>
-                <h3 className="font-medium text-foreground text-sm">Chưa có cuốn sách nào</h3>
+                <h3 className="font-medium text-foreground text-sm">{t("library.emptyBooks")}</h3>
                 <p className="text-xs text-muted mt-1 max-w-sm mx-auto">
-                  Bấm nút &quot;Chọn file PDF&quot; ở trên để thêm tài liệu đầu tiên và trải nghiệm đọc song ngữ!
+                  {t("library.emptyBooksDesc")}
                 </p>
                 <motion.button
                   type="button"
@@ -500,7 +508,7 @@ export default function Library() {
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Chọn file PDF ngay</span>
+                  <span>{t("library.chooseFileNow")}</span>
                 </motion.button>
               </motion.div>
             )}
@@ -515,17 +523,15 @@ export default function Library() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa tài liệu</DialogTitle>
+            <DialogTitle>{t("library.deleteDialog.title")}</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn xóa &quot;{bookToDelete?.title}&quot; cùng
-              toàn bộ dữ liệu bản dịch và cấu trúc đoạn câu không? Hành động này
-              không thể hoàn tác.
+              {t("library.deleteDialog.message", { title: bookToDelete?.title })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" disabled={deleting}>
-                Hủy
+                {t("common.cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -533,7 +539,7 @@ export default function Library() {
               onClick={confirmDelete}
               disabled={deleting}
             >
-              {deleting ? "Đang xóa…" : "Xóa tài liệu"}
+              {deleting ? t("library.deleteDialog.deleting") : t("library.deleteDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

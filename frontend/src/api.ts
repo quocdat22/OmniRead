@@ -1,12 +1,25 @@
 import type { Book, PageData } from "./types";
+import i18n from "./i18n";
 
 export class ApiError extends Error {
+  public code?: string;
+
   constructor(
     public status: number,
     message: string,
     public detail?: unknown,
   ) {
     super(message);
+    if (detail && typeof detail === "object" && "code" in detail) {
+      this.code = (detail as { code: string }).code;
+    }
+  }
+
+  get localizedMessage(): string {
+    if (this.code && i18n.exists(`errors.${this.code}`)) {
+      return i18n.t(`errors.${this.code}`);
+    }
+    return this.message;
   }
 }
 
@@ -21,10 +34,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* body không phải JSON */
     }
-    const msg =
+    const code = (detail as { code?: string } | null)?.code;
+    let msg =
       typeof detail === "string"
         ? detail
         : ((detail as { message?: string } | null)?.message ?? res.statusText);
+
+    if (code && i18n.exists(`errors.${code}`)) {
+      msg = i18n.t(`errors.${code}`);
+    }
     throw new ApiError(res.status, msg, detail);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);

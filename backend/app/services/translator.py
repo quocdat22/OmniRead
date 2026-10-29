@@ -67,10 +67,15 @@ Quy tắc dịch:
 
 class TranslationError(Exception):
     """Lỗi của riêng một block (block đó -> status=error)."""
+    def __init__(self, message: str, code: str = "TRANSLATION_FAILED"):
+        super().__init__(message)
+        self.code = code
 
 
 class FatalTranslationError(TranslationError):
     """Lỗi làm hỏng cả job (sai key, hết tiền...) -> dừng toàn bộ worker."""
+    def __init__(self, message: str, code: str = "TRANSLATION_FATAL"):
+        super().__init__(message, code=code)
 
 
 class Translator:
@@ -84,7 +89,7 @@ class Translator:
 
     async def translate(self, text: str) -> str:
         if not settings.deepseek_api_key:
-            raise FatalTranslationError("Chưa cấu hình DEEPSEEK_API_KEY trong file .env")
+            raise FatalTranslationError("Chưa cấu hình DEEPSEEK_API_KEY trong file .env", code=ErrorCode.DEEPSEEK_KEY_MISSING.value)
 
         delay = 1.5
         for attempt in range(1, settings.max_retries + 1):
@@ -99,10 +104,10 @@ class Translator:
                 )
                 out = (resp.choices[0].message.content or "").strip()
                 if not out:
-                    raise TranslationError("DeepSeek trả về nội dung rỗng")
+                    raise TranslationError("DeepSeek trả về nội dung rỗng", code=ErrorCode.TRANSLATION_EMPTY.value)
                 return out
             except (AuthenticationError, PermissionDeniedError) as e:
-                raise FatalTranslationError(f"API key sai hoặc không có quyền: {e}") from e
+                raise FatalTranslationError(f"API key sai hoặc không có quyền: {e}", code=ErrorCode.DEEPSEEK_AUTH_ERROR.value) from e
             except (RateLimitError, APIConnectionError, InternalServerError) as e:
                 if attempt == settings.max_retries:
                     raise TranslationError(f"Lỗi tạm thời, đã thử {attempt} lần: {e}") from e
@@ -110,9 +115,9 @@ class Translator:
                 delay *= 2
             except APIStatusError as e:
                 if e.status_code == 402:
-                    raise FatalTranslationError("Tài khoản DeepSeek hết số dư (402)") from e
+                    raise FatalTranslationError("Tài khoản DeepSeek hết số dư (402)", code=ErrorCode.DEEPSEEK_QUOTA_EXCEEDED.value) from e
                 raise TranslationError(f"API trả lỗi {e.status_code}: {e}") from e
-        raise TranslationError("Không dịch được")
+        raise TranslationError("Không dịch được", code=ErrorCode.TRANSLATION_FAILED.value)
 
     async def translate_batch(self, items: list[tuple[int, str]]) -> dict[int, str]:
         """Dịch nhiều block trong cùng một trang trong 1 request để bảo toàn ngữ cảnh liên kết.
@@ -137,7 +142,7 @@ class Translator:
             return {block_id: translated}
 
         if not settings.deepseek_api_key:
-            raise FatalTranslationError("Chưa cấu hình DEEPSEEK_API_KEY trong file .env")
+            raise FatalTranslationError("Chưa cấu hình DEEPSEEK_API_KEY trong file .env", code=ErrorCode.DEEPSEEK_KEY_MISSING.value)
 
         user_payload = {
             "blocks": [{"id": block_id, "text": text} for block_id, text in items]
@@ -158,15 +163,15 @@ class Translator:
                 )
                 out = (resp.choices[0].message.content or "").strip()
                 if not out:
-                    raise TranslationError("DeepSeek trả về nội dung rỗng")
+                    raise TranslationError("DeepSeek trả về nội dung rỗng", code=ErrorCode.TRANSLATION_EMPTY.value)
 
                 parsed_results = self._parse_batch_json(out)
                 if not parsed_results:
-                    raise TranslationError("Không trích xuất được bản dịch nào từ JSON của DeepSeek")
+                    raise TranslationError("Không trích xuất được bản dịch nào từ JSON của DeepSeek", code=ErrorCode.TRANSLATION_FAILED.value)
                 return parsed_results
 
             except (AuthenticationError, PermissionDeniedError) as e:
-                raise FatalTranslationError(f"API key sai hoặc không có quyền: {e}") from e
+                raise FatalTranslationError(f"API key sai hoặc không có quyền: {e}", code=ErrorCode.DEEPSEEK_AUTH_ERROR.value) from e
             except (RateLimitError, APIConnectionError, InternalServerError) as e:
                 if attempt == settings.max_retries:
                     raise TranslationError(f"Lỗi tạm thời, đã thử {attempt} lần: {e}") from e
@@ -174,10 +179,10 @@ class Translator:
                 delay *= 2
             except APIStatusError as e:
                 if e.status_code == 402:
-                    raise FatalTranslationError("Tài khoản DeepSeek hết số dư (402)") from e
+                    raise FatalTranslationError("Tài khoản DeepSeek hết số dư (402)", code=ErrorCode.DEEPSEEK_QUOTA_EXCEEDED.value) from e
                 raise TranslationError(f"API trả lỗi {e.status_code}: {e}") from e
 
-        raise TranslationError("Không dịch được batch")
+        raise TranslationError("Không dịch được batch", code=ErrorCode.TRANSLATION_FAILED.value)
 
     @staticmethod
     def _parse_batch_json(content: str) -> dict[int, str]:

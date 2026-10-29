@@ -9,10 +9,12 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleTooltip } from "@/components/ui/tooltip";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import ThemeToggle from "../components/ThemeToggle";
 import {
   COLOR_PRESETS,
@@ -23,48 +25,23 @@ import {
 import { useTheme, type ThemePreference } from "../hooks/useTheme";
 import type { HighlightStyle, SentenceHighlightStyle } from "../types";
 
-interface OptionItem {
-  id: HighlightStyle;
-  title: string;
-}
-
-const THEME_OPTIONS: { id: ThemePreference; title: string; desc: string; icon: string }[] = [
-  { id: "light", title: "Giao diện Sáng", desc: "Tối ưu cho ban ngày hoặc môi trường đủ sáng", icon: "☀️" },
-  { id: "dark", title: "Giao diện Tối", desc: "Dịu mắt khi đọc sách vào ban đêm", icon: "🌙" },
-  { id: "system", title: "Theo hệ thống", desc: "Tự động đồng bộ theo chế độ của thiết bị", icon: "💻" },
-];
-
-const OPTIONS: OptionItem[] = [
-  { id: "bar", title: "Vạch sáng bên trái" },
-  { id: "background", title: "Tô nền đoạn văn" },
-  { id: "border", title: "Đóng khung viền" },
-];
-
-const SENTENCE_OPTIONS: { id: SentenceHighlightStyle; title: string; desc: string }[] = [
-  {
-    id: "bracket",
-    title: "Dấu ngoặc góc 「 … 」 (Khuyên dùng)",
-    desc: "Đánh dấu tinh tế ở đầu và cuối câu, giữ trang sách sạch sẽ và không che văn bản gốc.",
-  },
-  {
-    id: "block",
-    title: "Khối phủ (Block Highlight)",
-    desc: "Tô nền sáng và viền màu bao phủ toàn bộ câu văn tương ứng trong tài liệu gốc.",
-  },
-];
-
 const SAMPLE_BLOCK = {
   originalSentences: [
     "OmniRead is designed to make reading foreign language documents natural and effortless.",
     "By clicking any text block, you instantly receive contextual translations while preserving the document's original reading flow.",
   ],
-  translationSentences: [
+  translationSentencesVi: [
     "OmniRead được thiết kế để giúp việc đọc tài liệu ngoại ngữ trở nên tự nhiên và dễ dàng.",
     "Bằng cách nhấp vào bất kỳ khối văn bản nào, bạn sẽ nhận được bản dịch ngữ cảnh tức thì mà vẫn giữ nguyên luồng đọc ban đầu.",
+  ],
+  translationSentencesEn: [
+    "OmniRead is designed to make reading foreign language documents natural and effortless.",
+    "By clicking any text block, you instantly receive contextual translations while preserving the document's original reading flow.",
   ],
 };
 
 export default function Settings() {
+  const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const {
     style: highlightStyle,
@@ -84,36 +61,83 @@ export default function Settings() {
 
   const isPaddingEnabled = highlightStyle === "background" || highlightStyle === "border";
 
+  const themeOptions: { id: ThemePreference; title: string; desc: string; icon: string }[] = [
+    {
+      id: "light",
+      title: t("settings.themeSection.light"),
+      desc: t("settings.themeSection.lightDesc"),
+      icon: "☀️",
+    },
+    {
+      id: "dark",
+      title: t("settings.themeSection.dark"),
+      desc: t("settings.themeSection.darkDesc"),
+      icon: "🌙",
+    },
+    {
+      id: "system",
+      title: t("settings.themeSection.system"),
+      desc: t("settings.themeSection.systemDesc"),
+      icon: "💻",
+    },
+  ];
+
+  const highlightOptions: { id: HighlightStyle; title: string }[] = [
+    { id: "bar", title: t("settings.highlightSection.bar") },
+    { id: "background", title: t("settings.highlightSection.background") },
+    { id: "border", title: t("settings.highlightSection.border") },
+  ];
+
+  const sentenceOptions: { id: SentenceHighlightStyle; title: string; desc: string }[] = [
+    {
+      id: "bracket",
+      title: t("settings.sentenceSection.bracketTitle"),
+      desc: t("settings.sentenceSection.bracketDesc"),
+    },
+    {
+      id: "block",
+      title: t("settings.sentenceSection.blockTitle"),
+      desc: t("settings.sentenceSection.blockDesc"),
+    },
+  ];
+
+  const translationSentences = i18n.language?.startsWith("en")
+    ? SAMPLE_BLOCK.translationSentencesEn
+    : SAMPLE_BLOCK.translationSentencesVi;
+
   return (
     <div className="settings">
       <div className="settings-header">
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <Link to="/" className="btn inline-flex items-center gap-1.5">
             <ArrowLeft className="h-4 w-4" />
-            <span>Thư viện</span>
+            <span>{t("common.library")}</span>
           </Link>
           <div>
-            <h1>Cài đặt</h1>
-            <p className="settings-subtitle">Tùy biến hiển thị và trải nghiệm đọc sách thông minh</p>
+            <h1>{t("settings.title")}</h1>
+            <p className="settings-subtitle">{t("settings.subtitle")}</p>
           </div>
         </div>
 
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
       </div>
 
       <Tabs defaultValue="appearance" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="appearance" className="inline-flex items-center gap-1.5 cursor-pointer">
             <Palette className="h-4 w-4" />
-            <span>Giao diện & Highlight</span>
+            <span>{t("settings.tabAppearance")}</span>
           </TabsTrigger>
           <TabsTrigger value="translation" className="inline-flex items-center gap-1.5 cursor-pointer">
             <Bot className="h-4 w-4" />
-            <span>Dịch thuật & AI</span>
+            <span>{t("settings.tabTranslation")}</span>
           </TabsTrigger>
           <TabsTrigger value="shortcuts" className="inline-flex items-center gap-1.5 cursor-pointer">
             <Keyboard className="h-4 w-4" />
-            <span>Phím tắt & Trợ năng</span>
+            <span>{t("settings.tabShortcuts")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -123,14 +147,12 @@ export default function Settings() {
             {/* Theme Selection Card */}
             <div className="settings-card">
               <div className="settings-card-header">
-                <h2>🎨 Chế độ hiển thị (Theme)</h2>
-                <p>
-                  Chọn giao diện sáng, tối hoặc tự động chuyển đổi theo cài đặt hệ điều hành của bạn.
-                </p>
+                <h2>{t("settings.themeSection.title")}</h2>
+                <p>{t("settings.themeSection.desc")}</p>
               </div>
 
               <div className="option-grid">
-                {THEME_OPTIONS.map((opt) => {
+                {themeOptions.map((opt) => {
                   const isSelected = theme === opt.id;
                   return (
                     <div
@@ -162,14 +184,12 @@ export default function Settings() {
             {/* Block Highlight Card */}
             <div className="settings-card">
               <div className="settings-card-header">
-                <h2>Kiểu đánh dấu vùng chọn (Block Highlight)</h2>
-                <p>
-                  Chọn cách khối/đoạn văn bản được làm nổi bật khi bạn click để xem bản dịch qua popup.
-                </p>
+                <h2>{t("settings.highlightSection.title")}</h2>
+                <p>{t("settings.highlightSection.desc")}</p>
               </div>
 
               <div className="option-grid">
-                {OPTIONS.map((opt) => {
+                {highlightOptions.map((opt) => {
                   const isSelected = highlightStyle === opt.id;
                   return (
                     <div
@@ -193,14 +213,18 @@ export default function Settings() {
               {/* Option Kiểu đối chiếu câu trong tài liệu gốc */}
               <div className="setting-color-row">
                 <div className="setting-color-header">
-                  <span>Kiểu sáng câu đối chiếu gốc khi hover:</span>
-                  <strong>{sentenceStyle === "bracket" ? "Dấu ngoặc góc 「 … 」" : "Khối phủ (Block)"}</strong>
+                  <span>{t("settings.sentenceSection.title")}</span>
+                  <strong>
+                    {sentenceStyle === "bracket"
+                      ? t("settings.sentenceSection.bracketTitle")
+                      : t("settings.sentenceSection.blockTitle")}
+                  </strong>
                 </div>
                 <p style={{ margin: "4px 0 12px", fontSize: "13px", color: "var(--muted)" }}>
-                  Chọn cách câu văn trong tài liệu gốc sáng lên khi bạn rê chuột vào từng câu dịch trong popup.
+                  {t("settings.sentenceSection.desc")}
                 </p>
                 <div className="option-grid" style={{ marginBottom: 0 }}>
-                  {SENTENCE_OPTIONS.map((opt) => {
+                  {sentenceOptions.map((opt) => {
                     const isSelected = sentenceStyle === opt.id;
                     return (
                       <div
@@ -229,23 +253,26 @@ export default function Settings() {
               {/* Option màu sắc đánh dấu block & câu */}
               <div className="setting-color-row">
                 <div className="setting-color-header">
-                  <span>Màu sắc nổi bật (Highlight Color):</span>
-                  <strong>{colorPreset.name}</strong>
+                  <span>{t("settings.colorSection.title")}</span>
+                  <strong>
+                    {t(`common.colors.${colorPreset.id}`, { defaultValue: colorPreset.name })}
+                  </strong>
                 </div>
                 <p style={{ margin: "4px 0 10px", fontSize: "13px", color: "var(--muted)" }}>
-                  Màu sắc đánh dấu khối và ký hiệu đối chiếu câu. Ký hiệu câu sẽ đồng bộ theo tông màu này để tạo sự thống nhất.
+                  {t("settings.colorSection.desc")}
                 </p>
                 <div className="color-swatches">
                   {COLOR_PRESETS.map((col) => {
                     const isSelected = highlightColor === col.id;
+                    const colName = t(`common.colors.${col.id}`, { defaultValue: col.name });
                     return (
-                      <SimpleTooltip key={col.id} content={`${col.name} (${col.hex})`}>
+                      <SimpleTooltip key={col.id} content={`${colName} (${col.hex})`}>
                         <button
                           type="button"
                           className={`color-swatch-btn${isSelected ? " active" : ""}`}
                           style={{ "--swatch-color": col.hex } as React.CSSProperties}
                           onClick={() => setHighlightColor(col.id)}
-                          aria-label={`Màu: ${col.name}`}
+                          aria-label={t("settings.colorSection.ariaColor", { name: colName })}
                         >
                           <span className="color-swatch-circle" />
                           {isSelected && (
@@ -263,10 +290,10 @@ export default function Settings() {
               {/* Radix Slider thiết lập Padding */}
               <div className={`setting-slider-row${!isPaddingEnabled ? " disabled opacity-50 pointer-events-none" : ""}`}>
                 <div className="slider-label">
-                  <span>Khoảng đệm (Padding):</span>
+                  <span>{t("settings.paddingSection.title")}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {highlightPadding === DEFAULT_HIGHLIGHT_PADDING && (
-                      <span className="default-tag">Mặc định</span>
+                      <span className="default-tag">{t("common.default")}</span>
                     )}
                     <strong>{highlightPadding}px</strong>
                   </div>
@@ -279,11 +306,11 @@ export default function Settings() {
                     value={[highlightPadding]}
                     disabled={!isPaddingEnabled}
                     onValueChange={(val) => setHighlightPadding(val[0])}
-                    aria-label="Khoảng đệm padding"
+                    aria-label={t("settings.paddingSection.aria")}
                   />
                   <div className="slider-ticks">
                     <span>0px</span>
-                    <span className="tick-default">4px (Mặc định)</span>
+                    <span className="tick-default">{t("settings.paddingSection.tickDefault")}</span>
                     <span>8px</span>
                     <span>12px</span>
                     <span>16px</span>
@@ -294,10 +321,10 @@ export default function Settings() {
               {/* Radix Slider thiết lập Font Size của Popup */}
               <div className="setting-slider-row">
                 <div className="slider-label">
-                  <span>Cỡ chữ nội dung popup:</span>
+                  <span>{t("settings.fontSizeSection.title")}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {popupFontSize === DEFAULT_POPUP_FONT_SIZE && (
-                      <span className="default-tag">Mặc định</span>
+                      <span className="default-tag">{t("common.default")}</span>
                     )}
                     <strong>{popupFontSize}px</strong>
                   </div>
@@ -309,11 +336,11 @@ export default function Settings() {
                     step={1}
                     value={[popupFontSize]}
                     onValueChange={(val) => setPopupFontSize(val[0])}
-                    aria-label="Cỡ chữ nội dung popup"
+                    aria-label={t("settings.fontSizeSection.aria")}
                   />
                   <div className="slider-ticks">
                     <span>12px</span>
-                    <span className="tick-default">15px (Mặc định)</span>
+                    <span className="tick-default">{t("settings.fontSizeSection.tickDefault")}</span>
                     <span>18px</span>
                     <span>21px</span>
                     <span>24px</span>
@@ -324,9 +351,9 @@ export default function Settings() {
               {/* Live Preview Section */}
               <div className="preview-box">
                 <div className="preview-header">
-                  <div className="preview-header-title">Xem trước (Live Preview)</div>
+                  <div className="preview-header-title">{t("settings.preview.title")}</div>
                   <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                    Rê chuột vào câu ở popup để thử nghiệm đối chiếu câu
+                    {t("settings.preview.hoverHint")}
                   </span>
                 </div>
 
@@ -376,7 +403,7 @@ export default function Settings() {
                         style={{ fontSize: `${popupFontSize}px` }}
                       >
                         <p style={{ margin: 0 }}>
-                          {SAMPLE_BLOCK.translationSentences.map((s, idx) => (
+                          {translationSentences.map((s, idx) => (
                             <span
                               key={idx}
                               className={`popup-sentence ${previewHoveredSentence === idx ? "active" : ""}`}
@@ -401,21 +428,21 @@ export default function Settings() {
           <div className="settings-group">
             <div className="settings-card">
               <div className="settings-card-header">
-                <h2>Cấu hình Dịch thuật & Mô hình DeepSeek</h2>
-                <p>Thông tin và cơ chế xử lý song ngữ thông minh trong OmniRead.</p>
+                <h2>{t("settings.aiConfigSection.title")}</h2>
+                <p>{t("settings.aiConfigSection.desc")}</p>
               </div>
 
               <div className="space-y-4 text-sm text-[var(--fg)]">
                 <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
                   <div className="flex items-center gap-2 mb-2">
                     <KeyRound className="h-4 w-4 text-[var(--accent)] shrink-0" />
-                    <h3 className="font-semibold">1. Khóa bảo mật DeepSeek API Key</h3>
+                    <h3 className="font-semibold">{t("settings.aiConfigSection.item1Title")}</h3>
                   </div>
                   <p className="text-[var(--muted)] mb-3">
-                    OmniRead sử dụng mô hình DeepSeek qua endpoint OpenAI-compatible để dịch thuật câu văn chính xác, tự nhiên theo ngữ cảnh học thuật và sách chuyên khảo.
+                    {t("settings.aiConfigSection.item1Desc")}
                   </p>
                   <p className="text-xs text-[var(--muted)]">
-                    Khóa được cấu hình an toàn ở phía máy chủ trong file <code>backend/.env</code>:
+                    {t("settings.aiConfigSection.item1Config", { file: "backend/.env" })}
                   </p>
                   <pre className="mt-2 rounded bg-black/10 dark:bg-black/30 p-2 text-xs font-mono">
                     DEEPSEEK_API_KEY=sk-your-api-key-here
@@ -425,10 +452,10 @@ export default function Settings() {
                 <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--surface)]">
                   <div className="flex items-center gap-2 mb-2">
                     <Layers className="h-4 w-4 text-[var(--accent)] shrink-0" />
-                    <h3 className="font-semibold">2. Cơ chế đối chiếu câu chuẩn xác (@floating-ui)</h3>
+                    <h3 className="font-semibold">{t("settings.aiConfigSection.item2Title")}</h3>
                   </div>
                   <p className="text-[var(--muted)]">
-                    Hệ thống tự động phân tách câu văn bản gốc và câu bản dịch tương ứng. Khi bạn rê chuột vào bất kỳ câu dịch nào trong popup, văn bản gốc trên trang sách sẽ được chiếu sáng ngay lập tức.
+                    {t("settings.aiConfigSection.item2Desc")}
                   </p>
                 </div>
               </div>
@@ -443,26 +470,26 @@ export default function Settings() {
               <div className="settings-card-header">
                 <div className="flex items-center gap-2">
                   <Keyboard className="h-5 w-5 text-[var(--accent)] shrink-0" />
-                  <h2>Phím tắt & Khả năng truy cập (Accessibility)</h2>
+                  <h2>{t("settings.shortcutsSection.title")}</h2>
                 </div>
-                <p>Điều hướng nhanh chóng bằng bàn phím theo tiêu chuẩn WAI-ARIA.</p>
+                <p>{t("settings.shortcutsSection.desc")}</p>
               </div>
 
               <div className="grid gap-3 text-sm">
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-                  <span>Mở bảng phím tắt trợ năng trong trình đọc</span>
+                  <span>{t("settings.shortcutsSection.openHelp")}</span>
                   <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">?</kbd>
                 </div>
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-                  <span>Đóng popup dịch hoặc hộp thoại</span>
+                  <span>{t("settings.shortcutsSection.closePopup")}</span>
                   <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">Esc</kbd>
                 </div>
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-                  <span>Điều chỉnh Slider / Chọn Tab</span>
+                  <span>{t("settings.shortcutsSection.adjustSlider")}</span>
                   <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">← / →</kbd>
                 </div>
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
-                  <span>Mở menu thao tác / Kích hoạt</span>
+                  <span>{t("settings.shortcutsSection.openMenu")}</span>
                   <kbd className="rounded border border-[var(--border)] bg-muted/40 px-2 py-0.5 font-mono text-xs">Enter / Space</kbd>
                 </div>
               </div>

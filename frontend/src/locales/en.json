@@ -1,0 +1,220 @@
+{
+  "common": {
+    "appName": "OmniRead",
+    "library": "Library",
+    "settings": "Settings",
+    "close": "Close",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "retry": "Retry",
+    "read": "Read",
+    "reading": "Reading",
+    "default": "Default",
+    "open": "Open",
+    "actions": "Actions",
+    "page": "Page",
+    "error": "Error",
+    "loading": "Loading…",
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "toggleTitle": "Theme: {{theme}} (click to toggle)",
+      "ariaLabel": "Toggle theme"
+    },
+    "language": {
+      "vi": "Tiếng Việt",
+      "en": "English",
+      "toggleTitle": "Change language"
+    },
+    "colors": {
+      "blue": "Blue (Default)",
+      "yellow": "Yellow",
+      "green": "Green",
+      "purple": "Purple",
+      "rose": "Rose",
+      "orange": "Orange"
+    }
+  },
+  "library": {
+    "title": "OmniRead Library",
+    "subtitle": "Bilingual English - Vietnamese PDF Reader powered by DeepSeek AI",
+    "backendOnline": "FastAPI Backend is online",
+    "aiReady": "DeepSeek AI model is ready for contextual translation",
+    "aiNotConfiguredTooltip": "DEEPSEEK_API_KEY is not configured in backend/.env",
+    "aiNotConfiguredBadge": "DeepSeek Not Configured",
+    "settingsTooltip": "Customize highlight, padding, and font size",
+    "warningApiKeyTitle": "DeepSeek API is not configured:",
+    "warningApiKey": "You can still upload books and read original PDFs. To activate automatic bilingual translation, configure {{key}} in {{file}}.",
+    "uploadTitle": "Add New Document or Book",
+    "uploadDesc": "Supports PDF format (.pdf). The system will automatically extract paragraphs and sentences for bilingual translation. Drag and drop a file here or click to browse.",
+    "uploading": "Uploading…",
+    "chooseFile": "Choose PDF File",
+    "yourBooks": "Your Books ({{count}})",
+    "emptyBooks": "No books yet",
+    "emptyBooksDesc": "Click \"Choose PDF File\" above to add your first document and experience bilingual reading!",
+    "chooseFileNow": "Choose PDF file now",
+    "status": {
+      "pending": "Waiting for analysis…",
+      "parsing": "Analyzing PDF…",
+      "translating": "Translating {{done}}/{{total}}",
+      "done": "Translated ({{total}} pages)",
+      "partial": "Done, {{errors}} blocks with errors",
+      "error": "Error: {{message}}",
+      "unknown": "unknown"
+    },
+    "retryFailedTooltip": "Retry failed paragraphs",
+    "openBook": "Open book",
+    "retryErrors": "Retry failed blocks",
+    "deleteBookAndTranslations": "Delete book & translations",
+    "deleteDialog": {
+      "title": "Confirm Document Deletion",
+      "message": "Are you sure you want to delete \"{{title}}\" along with all translations and structure data? This action cannot be undone.",
+      "deleting": "Deleting…",
+      "confirm": "Delete document"
+    },
+    "onlyPdfAllowed": "Only PDF format (.pdf) is supported.",
+    "cannotConnectBackend": "Cannot connect to backend: {{message}}"
+  },
+  "reader": {
+    "backToLibrary": "Back to library",
+    "analyzingPdf": "Analyzing PDF…",
+    "translating": "Translating",
+    "translated": "Translated",
+    "errorsCount": "{{count}} errors",
+    "retryErrorsTooltip": "Retry errors in sentences or pages",
+    "retryErrors": "Retry errors",
+    "currentPageAria": "Current page number",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "fitWidth": "Fit to width",
+    "quickSettingsTooltip": "Quick display settings",
+    "quickSettings": "Quick Settings",
+    "advancedSettings": "Advanced",
+    "blockHighlightStyle": "Block highlight style:",
+    "styleBar": "Accent bar",
+    "styleBackground": "Background",
+    "sentenceHighlightStyle": "Sentence alignment:",
+    "bracketStyle": "Brackets 「」",
+    "blockStyle": "Block fill",
+    "colorLabel": "Color:",
+    "popupFontSize": "Popup font size:",
+    "shortcutsTooltip": "Shortcuts & Guide (?)",
+    "shortcutsAria": "Accessibility shortcuts",
+    "loadingPdfData": "Loading PDF data…",
+    "shortcutsDialog": {
+      "title": "Keyboard Shortcuts & Reading Guide",
+      "subtitle": "Optimized keyboard bilingual reading following WAI-ARIA standards.",
+      "nextPrevBlock": "Next / Previous paragraph",
+      "closePopup": "Close translation popup or dialog",
+      "openHelp": "Open this help dialog",
+      "viewSentenceContext": "View contextual sentence translation",
+      "clickBlock": "Click on text block",
+      "highlightSourceSentence": "Highlight source sentence",
+      "hoverSentenceInPopup": "Hover sentence in popup"
+    }
+  },
+  "popup": {
+    "continuationPart": "Cross-page continuation (part {{part}}/{{total}})",
+    "translationError": "Translation error: {{error}}",
+    "unknownReason": "unknown reason",
+    "translating": "Translating… translation will appear when ready."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Customize display and smart reading experience",
+    "tabAppearance": "Appearance & Highlight",
+    "tabTranslation": "Translation & AI",
+    "tabShortcuts": "Shortcuts & Accessibility",
+    "themeSection": {
+      "title": "🎨 Appearance (Theme)",
+      "desc": "Choose light, dark, or automatically sync with your device settings.",
+      "light": "Light Theme",
+      "lightDesc": "Optimized for daytime or bright environments",
+      "dark": "Dark Theme",
+      "darkDesc": "Easy on the eyes when reading at night",
+      "system": "System Default",
+      "systemDesc": "Automatically sync with device settings"
+    },
+    "highlightSection": {
+      "title": "Block Highlight Style",
+      "desc": "Choose how text blocks are highlighted when clicked to view translation.",
+      "bar": "Left accent bar",
+      "background": "Paragraph background",
+      "border": "Surrounding border"
+    },
+    "sentenceSection": {
+      "title": "Source sentence highlight style on hover:",
+      "desc": "Choose how sentences in original text illuminate when hovering over translated sentences in popup.",
+      "bracketTitle": "Corner Brackets 「 … 」 (Recommended)",
+      "bracketDesc": "Subtle marks at start and end of sentence, keeping page clean without covering text.",
+      "blockTitle": "Block Highlight",
+      "blockDesc": "Bright background and colored border covering entire sentence in original document."
+    },
+    "colorSection": {
+      "title": "Highlight Color:",
+      "desc": "Color for block highlight and sentence alignment. Sentence marks sync with this color palette.",
+      "ariaColor": "Color: {{name}}"
+    },
+    "paddingSection": {
+      "title": "Padding:",
+      "default": "Default",
+      "aria": "Padding slider",
+      "tickDefault": "4px (Default)"
+    },
+    "fontSizeSection": {
+      "title": "Popup content font size:",
+      "default": "Default",
+      "aria": "Popup font size slider",
+      "tickDefault": "15px (Default)"
+    },
+    "preview": {
+      "title": "Live Preview",
+      "hoverHint": "Hover over sentence in popup to test sentence alignment",
+      "mockSentences": [
+        "OmniRead is designed to make reading foreign documents natural and seamless.",
+        "By clicking any text block, you receive instant contextual translation while preserving your original reading flow."
+      ]
+    },
+    "aiConfigSection": {
+      "title": "Translation Configuration & DeepSeek Model",
+      "desc": "Information and intelligent bilingual processing mechanisms in OmniRead.",
+      "item1Title": "1. DeepSeek API Key Security",
+      "item1Desc": "OmniRead uses DeepSeek models via OpenAI-compatible endpoints to translate sentences accurately and naturally in academic contexts.",
+      "item1Config": "The key is configured securely on the server in {{file}}:",
+      "item2Title": "2. Precise Sentence Alignment Mechanism (@floating-ui)",
+      "item2Desc": "The system automatically segments source sentences and corresponding translations. Hovering any translated sentence illuminates the source text instantly."
+    },
+    "shortcutsSection": {
+      "title": "Keyboard Shortcuts & Accessibility",
+      "desc": "Fast keyboard navigation adhering to WAI-ARIA standards.",
+      "openHelp": "Open accessibility shortcuts dialog in reader",
+      "closePopup": "Close translation popup or dialog",
+      "adjustSlider": "Adjust slider / Select tab",
+      "openMenu": "Open action menu / Activate"
+    }
+  },
+  "errors": {
+    "INVALID_FILE_TYPE": "Only PDF files (.pdf) are supported.",
+    "INVALID_PDF_FORMAT": "Uploaded file is not a valid PDF.",
+    "FILE_TOO_LARGE": "File size exceeds the allowed limit.",
+    "FILE_EMPTY": "Uploaded file is empty.",
+    "BOOK_ALREADY_EXISTS": "This book has already been uploaded.",
+    "BOOK_NOT_FOUND": "Requested book was not found.",
+    "FILE_NOT_FOUND": "Book PDF file was not found.",
+    "BOOK_PARSING": "Book is being processed, please wait a moment.",
+    "PAGE_NOT_FOUND": "Page does not exist.",
+    "PDF_NO_TEXT_LAYER": "PDF has no text layer (appears to be a scan). Only text-based PDFs are supported.",
+    "PDF_OPEN_ERROR": "Could not open PDF file.",
+    "PDF_PASSWORD_PROTECTED": "PDF is password protected.",
+    "PDF_EMPTY": "PDF contains no pages.",
+    "NO_PARAGRAPHS_FOUND": "No text paragraphs were found in the PDF.",
+    "DEEPSEEK_KEY_MISSING": "DEEPSEEK_API_KEY is not configured in backend/.env.",
+    "DEEPSEEK_QUOTA_EXCEEDED": "DeepSeek account quota exceeded / insufficient balance (402).",
+    "DEEPSEEK_AUTH_ERROR": "Invalid API key or unauthorized.",
+    "TRANSLATION_EMPTY": "AI model returned empty content.",
+    "TRANSLATION_FAILED": "Translation failed.",
+    "TRANSLATION_FATAL": "Fatal error during AI translation.",
+    "INTERNAL_ERROR": "An unexpected internal error occurred."
+  }
+}

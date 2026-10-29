@@ -103,7 +103,7 @@ class JobManager:
             raise
         except Exception as e:  # noqa: BLE001
             log.exception("Pipeline lỗi (book %s)", book_id)
-            await self._set_book_error(book_id, f"Lỗi không mong đợi: {e}")
+            await self._set_book_error(book_id, getattr(e, "code", ErrorCode.INTERNAL_ERROR.value))
 
     async def _set_book_error(self, book_id: int, msg: str) -> None:
         async with connect() as db:
@@ -125,10 +125,10 @@ class JobManager:
         try:
             doc = await asyncio.to_thread(parse_pdf, path)
         except PdfParseError as e:
-            await self._set_book_error(book_id, str(e))
+            await self._set_book_error(book_id, getattr(e, "code", str(e)))
             return False
         if not doc.blocks:
-            await self._set_book_error(book_id, "Không tìm thấy đoạn văn nào trong PDF.")
+            await self._set_book_error(book_id, "NO_PARAGRAPHS_FOUND")
             return False
 
         async with connect() as db:
@@ -232,7 +232,7 @@ class JobManager:
                 try:
                     translations = await self.translator.translate_batch(page_items)
                 except FatalTranslationError as e:
-                    self._fatal[book_id] = str(e)
+                    self._fatal[book_id] = getattr(e, "code", str(e))
                     await db.execute(
                         f"UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id IN ({placeholders}) OR id IN ({placeholders}))",
                         (book_id, *group_ids, *group_ids),
@@ -269,7 +269,7 @@ class JobManager:
                                 (book_id, gid, gid),
                             )
                         except FatalTranslationError as e:
-                            self._fatal[book_id] = str(e)
+                            self._fatal[book_id] = getattr(e, "code", str(e))
                             await db.execute(
                                 "UPDATE blocks SET status = 'pending' WHERE book_id = ? AND (group_id = ? OR id = ?)",
                                 (book_id, gid, gid),
@@ -278,9 +278,10 @@ class JobManager:
                             return
                         except Exception as e:  # noqa: BLE001
                             log.warning("Block %s lỗi: %s", head_id, e)
+                            err_val = getattr(e, "code", str(e)[:500])
                             await db.execute(
                                 "UPDATE blocks SET status = 'error', error_msg = ? WHERE book_id = ? AND (group_id = ? OR id = ?)",
-                                (str(e)[:500], book_id, gid, gid),
+                                (err_val, book_id, gid, gid),
                             )
                 await db.commit()
 
