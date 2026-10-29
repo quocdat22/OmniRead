@@ -1,17 +1,4 @@
-import {
-  AlertCircle,
-  ArrowLeft,
-  CheckCircle2,
-  ChevronRight,
-  HelpCircle,
-  Keyboard,
-  Loader2,
-  Maximize2,
-  Minus,
-  Plus,
-  RefreshCw,
-  Sliders,
-} from "lucide-react";
+import { AlertCircle, Keyboard, Loader2 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type React from "react";
 import {
@@ -22,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -30,25 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
-import { SimpleTooltip } from "@/components/ui/tooltip";
 import { api, ApiError } from "../api";
 import PdfPage from "../components/PdfPage";
-import ThemeToggle from "../components/ThemeToggle";
+import ReaderSidebar from "../components/ReaderSidebar";
+import ReaderToolbar from "../components/ReaderToolbar";
 import { AnimatePresence } from "motion/react";
 import TranslationPopup from "../components/TranslationPopup";
-import {
-  COLOR_PRESETS,
-  useHighlightStyle,
-} from "../hooks/useHighlightStyle";
+import { useHighlightStyle } from "../hooks/useHighlightStyle";
 import { useProgress } from "../hooks/useProgress";
 import { pdfjs } from "../pdf";
-import type { Block, Book, HighlightStyle, PageData, SentenceHighlightStyle } from "../types";
+import type { Block, Book } from "../types";
 
 const BASE_WIDTH = 820; // px ở zoom 100%
 const lastPageKey = (id: number) => `reader:lastPage:${id}`;
@@ -79,9 +56,9 @@ export default function Reader({ bookId }: { bookId: number }) {
   const [defaultAspect, setDefaultAspect] = useState(1.414);
   const [aspects, setAspects] = useState<Record<number, number>>({});
   const [current, setCurrent] = useState(() => readSavedPage(bookId));
-  const [jump, setJump] = useState(String(current));
 
-  const [pages, setPages] = useState<Record<number, PageData>>({});
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pages, setPages] = useState<Record<number, import("../types").PageData>>({});
   const [selected, setSelected] = useState<Selection | null>(null);
   const [hoveredSentence, setHoveredSentence] = useState<{
     page: number;
@@ -139,7 +116,6 @@ export default function Reader({ bookId }: { bookId: number }) {
     } catch {
       /* ignore */
     }
-    setJump(String(current));
   }, [bookId, current]);
 
   // ---------------------------------------------------------------- tải blocks theo trang
@@ -302,7 +278,7 @@ export default function Reader({ bookId }: { bookId: number }) {
       if (nextIndex === currentIndex) return;
       const next = orderedBlocks[nextIndex];
       const el = document.querySelector<HTMLElement>(
-        `[data-block-id=\"${next.id}\"]`
+        `[data-block-id="${next.id}"]`
       );
       if (!next || !el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -398,265 +374,44 @@ export default function Reader({ bookId }: { bookId: number }) {
     !!progress && (progress.errors > 0 || progress.status === "error");
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="sticky top-0 z-50 h-14 px-3 sm:px-4 flex items-center gap-3 bg-surface/95 backdrop-blur-sm border-b border-border shadow-xs">
-        <SimpleTooltip content="Quay về danh sách sách">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-surface text-foreground hover:border-accent hover:text-accent transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Thư viện</span>
-          </Link>
-        </SimpleTooltip>
+    <div className="min-h-screen bg-background text-foreground flex flex-col pt-14">
+      {/* Thanh công cụ Reader gọn hơn với tính năng tự ẩn/hiện khi cuộn */}
+      <ReaderToolbar
+        bookTitle={book?.title}
+        currentPage={current}
+        numPages={pdf?.numPages}
+        onJumpPage={goTo}
+        zoom={zoom}
+        onChangeZoom={changeZoom}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        progress={progress}
+        pagesTotal={pagesTotal}
+        pagesDone={pagesDone}
+        canRetry={canRetry}
+        onRetry={retryErrors}
+        highlightStyle={highlightStyle}
+        setHighlightStyle={setHighlightStyle}
+        sentenceStyle={sentenceStyle}
+        setSentenceStyle={setSentenceStyle}
+        highlightColor={highlightColor}
+        setHighlightColor={setHighlightColor}
+        colorPreset={colorPreset}
+        popupFontSize={popupFontSize}
+        setPopupFontSize={setPopupFontSize}
+        onOpenShortcuts={() => setShowShortcutsDialog(true)}
+      />
 
-        <div className="font-semibold text-sm text-foreground max-w-[180px] sm:max-w-[260px] truncate" title={book?.title}>
-          {book?.title ?? "…"}
-        </div>
-
-        <div className="hidden md:flex items-center gap-2 text-xs text-muted bg-surface-hover/60 px-2.5 py-1 rounded-lg border border-border">
-          {!progress ? null : progress.status === "parsing" ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-accent shrink-0" />
-              <span>Đang phân tích PDF…</span>
-            </>
-          ) : progress.status === "error" ? (
-            <>
-              <AlertCircle className="h-3.5 w-3.5 text-danger shrink-0" />
-              <span className="text-danger font-medium">{progress.error_msg}</span>
-            </>
-          ) : (
-            <>
-              {progress.status === "translating" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-accent shrink-0" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-              )}
-              <span>
-                {progress.status === "translating" ? "Đang dịch" : "Đã dịch"}{" "}
-                {pagesDone}/{pagesTotal}
-              </span>
-              {progress.errors > 0 && (
-                <span className="inline-flex items-center gap-1 ml-1 text-danger font-medium">
-                  <AlertCircle className="h-3 w-3 shrink-0" />
-                  <span>{progress.errors} lỗi</span>
-                </span>
-              )}
-            </>
-          )}
-        </div>
-
-        {canRetry && (
-          <SimpleTooltip content="Thử dịch lại các câu hoặc trang bị lỗi">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
-              onClick={retryErrors}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Dịch lại lỗi</span>
-            </button>
-          </SimpleTooltip>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Page jump */}
-        <label className="flex items-center gap-1.5 text-xs text-muted font-medium">
-          Trang
-          <input
-            type="number"
-            min={1}
-            max={pdf?.numPages ?? 1}
-            value={jump}
-            onChange={(e) => setJump(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && goTo(Number(jump))}
-            className="w-14 px-2 py-0.5 text-center text-xs font-medium bg-background border border-border rounded-lg text-foreground focus:outline-hidden focus:border-accent"
-            aria-label="Số trang hiện tại"
-          />
-          / {pdf?.numPages ?? "…"}
-        </label>
-
-        {/* Zoom controls */}
-        <div className="flex items-center gap-1 text-xs">
-          <SimpleTooltip content="Thu nhỏ tỉ lệ">
-            <button
-              type="button"
-              className="p-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors cursor-pointer"
-              onClick={() => changeZoom(zoom - 0.1)}
-              aria-label="Thu nhỏ"
-            >
-              <Minus className="h-3.5 w-3.5" />
-            </button>
-          </SimpleTooltip>
-
-          <span className="w-11 text-center text-xs font-medium text-muted">
-            {Math.round(zoom * 100)}%
-          </span>
-
-          <SimpleTooltip content="Phóng to tỉ lệ">
-            <button
-              type="button"
-              className="p-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors cursor-pointer"
-              onClick={() => changeZoom(zoom + 0.1)}
-              aria-label="Phóng to"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </SimpleTooltip>
-
-          <SimpleTooltip content="Vừa chiều rộng màn hình">
-            <button
-              type="button"
-              className="hidden sm:inline-flex p-1 rounded-lg border border-border bg-surface text-foreground hover:border-accent transition-colors cursor-pointer"
-              onClick={() => changeZoom((window.innerWidth - 32) / BASE_WIDTH)}
-              aria-label="Vừa chiều rộng"
-            >
-              <Maximize2 className="h-3.5 w-3.5" />
-            </button>
-          </SimpleTooltip>
-        </div>
-
-        {/* Quick Settings Popover */}
-        <Popover>
-          <SimpleTooltip content="Cài đặt hiển thị nhanh">
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="p-1.5 rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:border-accent transition-colors cursor-pointer"
-                aria-label="Cài đặt nhanh"
-              >
-                <Sliders className="h-4 w-4" />
-              </button>
-            </PopoverTrigger>
-          </SimpleTooltip>
-          <PopoverContent className="w-80 p-4" align="end">
-            <div className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <span className="font-semibold text-sm">Cài đặt nhanh</span>
-                <Link
-                  to="/settings"
-                  className="text-xs text-accent hover:underline inline-flex items-center"
-                >
-                  <span>Nâng cao</span>
-                  <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-                </Link>
-              </div>
-
-              {/* Kiểu highlight */}
-              <div>
-                <div className="text-xs text-muted mb-1.5 font-medium">
-                  Kiểu đánh dấu khối:
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 text-xs">
-                  {[
-                    { id: "bar", label: "Vạch sáng" },
-                    { id: "background", label: "Tô nền" },
-                    { id: "border", label: "Khung" },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`px-2 py-1.5 rounded border text-center transition-colors cursor-pointer ${
-                        highlightStyle === item.id
-                          ? "border-accent bg-accent text-white font-medium"
-                          : "border-border hover:bg-surface-hover"
-                      }`}
-                      onClick={() => setHighlightStyle(item.id as HighlightStyle)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Kiểu câu đối chiếu */}
-              <div>
-                <div className="text-xs text-muted mb-1.5 font-medium">
-                  Sáng câu đối chiếu:
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  {[
-                    { id: "bracket", label: "Dấu ngoặc 「」" },
-                    { id: "block", label: "Khối phủ" },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`px-2 py-1.5 rounded border text-center transition-colors cursor-pointer ${
-                        sentenceStyle === item.id
-                          ? "border-accent bg-accent text-white font-medium"
-                          : "border-border hover:bg-surface-hover"
-                      }`}
-                      onClick={() =>
-                        setSentenceStyle(item.id as SentenceHighlightStyle)
-                      }
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bảng màu */}
-              <div>
-                <div className="text-xs text-muted mb-2 font-medium">
-                  Màu sắc: <strong className="text-foreground">{colorPreset.name}</strong>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  {COLOR_PRESETS.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${
-                        highlightColor === c.id
-                          ? "border-foreground scale-110 shadow-xs ring-2 ring-accent/30"
-                          : "border-transparent"
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                      onClick={() => setHighlightColor(c.id)}
-                      title={c.name}
-                      aria-label={c.name}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Slider cỡ chữ popup */}
-              <div className="pt-1">
-                <div className="flex justify-between text-xs text-muted mb-2">
-                  <span className="font-medium">Cỡ chữ popup:</span>
-                  <span className="font-semibold text-foreground">
-                    {popupFontSize}px
-                  </span>
-                </div>
-                <Slider
-                  min={12}
-                  max={24}
-                  step={1}
-                  value={[popupFontSize]}
-                  onValueChange={(val) => setPopupFontSize(val[0])}
-                  aria-label="Cỡ chữ popup"
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        {/* Shortcuts Help button */}
-        <SimpleTooltip content="Phím tắt & Hướng dẫn (?)">
-          <button
-            type="button"
-            className="p-1.5 rounded-lg border border-border bg-surface text-muted hover:text-foreground hover:border-accent transition-colors cursor-pointer"
-            onClick={() => setShowShortcutsDialog(true)}
-            aria-label="Phím tắt trợ năng"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        </SimpleTooltip>
-
-        <ThemeToggle />
-      </header>
+      {/* Thanh bên xem mục lục & danh sách trang */}
+      <ReaderSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        book={book}
+        numPages={pdf?.numPages}
+        currentPage={current}
+        onSelectPage={goTo}
+        progress={progress}
+      />
 
       {error && (
         <div className="m-4 p-3.5 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm flex items-center gap-2">
