@@ -1,89 +1,66 @@
-# OmniRead 📖
+# OmniRead
 
-> **Trình đọc sách PDF song ngữ Anh - Việt thông minh với AI DeepSeek**
-> Tự động phân tích bố cục, trích xuất đoạn văn bản, dịch ngầm theo tiêu điểm đọc và hiển thị bản dịch tương tác ngay trên trang sách.
-
----
-
-## 🌟 Điểm nổi bật & Tính năng
-
-- 📄 **Phân tích PDF chuyên sâu (PyMuPDF / fitz)**:
-  - Tự động trích xuất các khối văn bản (blocks) kèm tọa độ pixel thực (`bbox`).
-  - Thuật toán thông minh lọc bỏ nhiễu biên (Header, Footer, số trang).
-  - Nối dòng gãy và giải quyết từ có dấu gạch nối cuối dòng (`hyphenation`).
-- 🤖 **Dịch thuật song ngữ tự động qua DeepSeek AI**:
-  - Dịch theo từng đoạn văn bản giữ trọn ngữ cảnh, định dạng chuyên nghiệp.
-  - Hàng đợi worker bất đồng bộ song song (`concurrency`), không làm treo UI khi tải sách dài hàng trăm trang.
-  - **Dynamic Viewport Focus Priority**: Hàng đợi ưu tiên dịch trước các trang người dùng đang cuộn tới (`ORDER BY ABS(page - focus_page)`).
-  - Tự động thử lại khi gặp giới hạn tốc độ (Rate Limit / 429) với Exponential Backoff.
-- ⚡ **Tiến độ thời gian thực (Server-Sent Events - SSE)**:
-  - Cập nhật số đoạn đã dịch, tỉ lệ phần trăm và thông báo lỗi qua stream `/api/books/{id}/progress`.
-- 🔍 **Giao diện đọc sách tương tác mượt mà**:
-  - Render PDF độ nét cao theo `devicePixelRatio` bằng PDF.js (chỉ render trang trong viewport để tối ưu RAM).
-  - Highlight trực quan các đoạn text trên nền tài liệu gốc.
-  - Popup nổi tối giản bám sát tọa độ khối văn bản (`@floating-ui/react`).
-  - Phím tắt tiện lợi: `ArrowRight` (đoạn tiếp), `ArrowLeft` (đoạn trước), `Escape` (đóng popup).
-  - Tự động lưu trang đọc dở vào `localStorage`.
-- 🛡️ **Tích hợp toàn diện & Sẵn sàng triển khai**:
-  - **Single-port SPA Mode**: Backend FastAPI có thể phục vụ toàn bộ ứng dụng (cả Web UI và REST API) trên một cổng duy nhất (8000).
-  - **Dual Dev Mode**: Hỗ trợ Vite Dev Server (port 5173) với proxy mượt mà và Hot Module Replacement (HMR).
-  - Hỗ trợ Docker & Docker Compose đa tầng (multi-stage build) nhỏ gọn.
-  - Trạng thái kiểm tra sức khỏe (Health Check) thông minh cảnh báo trực quan trên giao diện nếu chưa cấu hình `DEEPSEEK_API_KEY`.
+Trình đọc sách PDF song ngữ Anh - Việt thông minh sử dụng AI (DeepSeek / OpenAI-compatible). Ứng dụng tự động phân tích bố cục PDF, trích xuất đoạn văn, dịch nền theo tiêu điểm đọc và hiển thị bản dịch tương tác ngay trên trang sách.
 
 ---
 
-## 📁 Cấu trúc thư mục
+## Tính năng chính
+
+- Phân tích PDF chuyên sâu (PyMuPDF): Trích xuất khối văn bản kèm tọa độ thực, lọc bỏ nhiễu biên (Header, Footer, số trang), xử lý nối dòng gãy và từ có dấu gạch nối, hỗ trợ ghép nối đoạn văn xuyên trang (continuation merge).
+- Dịch thuật AI tối ưu (DeepSeek): Dịch từng đoạn giữ trọn ngữ cảnh; hàng đợi bất đồng bộ ưu tiên dịch các trang đang hiển thị (Dynamic Viewport Focus Priority); tự động thử lại khi gặp giới hạn tốc độ (Rate Limit).
+- Trải nghiệm đọc trực quan: Hiển thị PDF sắc nét theo viewport bằng PDF.js, highlight khối văn bản và hiển thị popup bản dịch mượt mà. Thanh công cụ tinh gọn tự ẩn khi cuộn và sidebar điều hướng trang nhanh chóng.
+- Đa ngôn ngữ và giao diện linh hoạt: Hỗ trợ chuyển đổi ngôn ngữ giao diện (Tiếng Việt / English), chế độ Sáng / Tối (Dark / Light mode), cùng trang Cài đặt tùy chỉnh cấu hình API và tham số dịch trực tiếp.
+- Triển khai linh hoạt: Hỗ trợ chế độ Single-port SPA (FastAPI phục vụ cả Web và API trên cổng 8000), chế độ Dual-port cho lập trình viên (Vite HMR + FastAPI), và Docker Compose sẵn sàng cho production.
+
+---
+
+## Cấu trúc dự án
 
 ```text
 OmniRead/
 ├── backend/                  # FastAPI Backend & SQLite
 │   ├── app/
-│   │   ├── api/              # REST & SSE endpoints (/api/books, /api/health)
-│   │   ├── services/         # Trích xuất PDF, Worker dịch & DeepSeek client
-│   │   ├── config.py         # Cấu hình Pydantic & Biến môi trường
-│   │   ├── db.py             # SQLite DDL & Queries (aiosqlite)
-│   │   └── main.py           # FastAPI app & Static SPA serving
-│   ├── data/                 # Thư mục lưu trữ SQLite (.db) và file PDF
-│   ├── tests/                # Smoke tests kiểm tra toàn bộ luồng
-│   ├── requirements.txt      # Python dependencies
-│   └── .env.example          # Mẫu cấu hình môi trường backend
-├── frontend/                 # React 19 + TypeScript + Vite Frontend
+│   │   ├── api/              # REST endpoints và SSE progress
+│   │   ├── services/         # Trích xuất PDF, Worker dịch thuật
+│   │   ├── config.py         # Cấu hình hệ thống và biến môi trường
+│   │   ├── db.py             # Cơ sở dữ liệu SQLite
+│   │   └── main.py           # Khởi tạo FastAPI và phục vụ giao diện tĩnh
+│   ├── data/                 # Thư mục lưu trữ cơ sở dữ liệu và file PDF
+│   └── tests/                # Bộ kiểm thử tự động
+├── frontend/                 # React 19 + TypeScript + Vite
 │   ├── src/
-│   │   ├── components/       # PdfPage, BlockOverlay, TranslationPopup
-│   │   ├── pages/            # Library (Thư viện) & Reader (Trình đọc)
-│   │   ├── hooks/            # useProgress (SSE client)
-│   │   ├── api.ts            # API client giao tiếp backend
-│   │   ├── pdf.ts            # PDF.js worker setup
-│   │   └── styles.css        # Giao diện responsive & Dark/Light mode
-│   ├── package.json          # Frontend dependencies & scripts
-│   └── vite.config.ts        # Cấu hình Vite & Proxy
-├── dev.sh                    # Script khởi chạy môi trường phát triển (1 lệnh)
-├── start.sh                  # Script khởi chạy bản phát hành độc lập (1 lệnh)
-├── Dockerfile                # Multi-stage production container
-├── docker-compose.yml        # Orchestration cho Docker deployment
-├── package.json              # Root package script runner
-└── README.md                 # Tài liệu hướng dẫn
+│   │   ├── components/       # PdfPage, TranslationPopup, ReaderToolbar, v.v.
+│   │   ├── pages/            # Library, Reader, Settings
+│   │   ├── locales/          # Tệp dịch đa ngôn ngữ (vi, en)
+│   │   └── hooks/            # Custom hooks (SSE progress, highlight style, v.v.)
+│   └── package.json          # Cấu hình frontend dependencies
+├── Dockerfile                # Multi-stage Docker build
+├── docker-compose.yml        # Cấu hình Docker Compose
+├── setup.sh                  # Script cài đặt môi trường tự động
+├── dev.sh                    # Script chạy môi trường phát triển (Hot-reload)
+├── start.sh                  # Script chạy bản hoàn chỉnh trên 1 cổng
+└── package.json              # Quản lý script chung của toàn bộ dự án
 ```
 
 ---
 
-## 🚀 Hướng dẫn cài đặt & Khởi chạy
+## Cài đặt và Khởi chạy
 
 ### 1. Yêu cầu hệ thống
 
-- **Node.js** >= 18
-- **Python** >= 3.10 (khuyến nghị dùng `uv` hoặc `venv`)
-- (Tùy chọn) **Docker** & **Docker Compose** nếu muốn chạy container hóa.
+- Node.js >= 18
+- Python >= 3.10 (khuyến nghị dùng uv hoặc venv)
+- Docker và Docker Compose (tùy chọn)
 
-### 2. Cấu hình biến môi trường
+### 2. Thiết lập môi trường nhanh
 
-Sao chép file `.env.example` thành `.env` trong thư mục `backend/` (hoặc thư mục gốc):
+Chạy script cài đặt tự động (tạo môi trường ảo Python, cài đặt thư viện và build frontend):
 
 ```bash
-cp .env.example backend/.env
+./setup.sh
 ```
 
-Mở file `backend/.env` và điền khóa API DeepSeek:
+Cấu hình API Key trong file `backend/.env`:
 
 ```env
 DEEPSEEK_API_KEY=sk-your-deepseek-api-key-here
@@ -93,74 +70,56 @@ DEEPSEEK_TEMPERATURE=1.3
 CONCURRENCY=6
 ```
 
-> **Ghi chú**: Nếu chưa có API Key, hệ thống vẫn cho phép tải sách và đọc PDF nguyên bản. Một huy hiệu cảnh báo vàng sẽ hiển thị trên giao diện thông báo cần cấu hình Key để bắt đầu dịch.
+Lưu ý: Nếu chưa cấu hình API Key, bạn vẫn có thể tải sách và đọc nội dung PDF gốc. Bạn cũng có thể cập nhật API Key trực tiếp trong trang Cài đặt trên giao diện web.
 
----
+### 3. Chế độ phát triển (Development)
 
-### 3. Cách chạy 1: Môi trường phát triển (Hot-Reload)
-
-Cài đặt dependencies và khởi chạy đồng thời cả Backend và Frontend:
+Khởi chạy đồng thời Backend (cổng 8000) và Frontend (cổng 5173 với hot-reload):
 
 ```bash
-# Cài đặt root dependencies (cho lệnh chạy song song)
-npm install
-
-# Khởi chạy cả Backend (8000) và Frontend (5173) bằng 1 lệnh:
 ./dev.sh
-# hoặc: npm run dev
 ```
 
-- **Giao diện Web (Vite HMR)**: [http://localhost:5173](http://localhost:5173)
-- **API Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Giao diện người dùng: http://localhost:5173
+- Tài liệu API (Swagger Docs): http://localhost:8000/docs
 
----
+### 4. Chế độ sản xuất (Production / Single Port)
 
-### 4. Cách chạy 2: Chạy độc lập toàn bộ dự án trên 1 Port (Production / Single Port)
-
-Khởi chạy cả Frontend và Backend gộp chung trên port `8000`:
+Khởi chạy toàn bộ ứng dụng trên một cổng duy nhất (cổng 8000):
 
 ```bash
 ./start.sh
-# hoặc: npm run build && npm run start
 ```
 
-Mở trình duyệt tại [http://localhost:8000](http://localhost:8000) để sử dụng toàn bộ ứng dụng.
+Truy cập ứng dụng tại: http://localhost:8000
 
----
-
-### 5. Cách chạy 3: Chạy bằng Docker Compose
+### 5. Chạy với Docker
 
 ```bash
 docker compose up --build -d
 ```
 
-Ứng dụng sẽ được đóng gói đa tầng tự động và lắng nghe tại [http://localhost:8000](http://localhost:8000). Dữ liệu sách và bản dịch được duy trì bền vững trong Docker volume `omniread_data`.
+Ứng dụng sẽ hoạt động tại http://localhost:8000. Dữ liệu sách và bản dịch được lưu trữ bền vững trong Docker volume.
 
 ---
 
-## 🧪 Kiểm thử (Testing)
+## Hướng dẫn sử dụng & Phím tắt
 
-OmniRead cung cấp bộ smoke test tự động bao quát:
-- Parse PDF trích xuất blocks.
-- Khởi tạo SQLite và thêm sách.
-- Hàng đợi worker dịch bất đồng bộ.
-- Truyền phát SSE `/api/books/{id}/progress`.
-- Dọn dẹp cascade xóa sách và xóa file PDF tương ứng.
+- Tải sách: Kéo thả file PDF vào khu vực tải lên tại trang Thư viện.
+- Tiến độ dịch: Hệ thống tự động dịch nền theo thứ tự ưu tiên trang đang xem; tiến độ hiển thị theo thời gian thực.
+- Xem bản dịch: Nhấp vào đoạn văn bản bất kỳ để mở popup bản dịch tiếng Việt tương ứng.
+- Phím tắt điều hướng:
+  - Phím mũi tên Phải: Chuyển sang đoạn tiếp theo.
+  - Phím mũi tên Trái: Quay lại đoạn trước đó.
+  - Phím Escape: Đóng popup bản dịch.
+- Tự động lưu tiến độ: Vị trí trang đọc gần nhất được lưu tự động cho lần truy cập sau.
 
-Chạy toàn bộ bài kiểm tra (cả Backend và Frontend typecheck):
+---
+
+## Kiểm thử
+
+Chạy toàn bộ bài kiểm tra smoke test backend và typecheck frontend:
 
 ```bash
 npm test
 ```
-
----
-
-## 📖 Hướng dẫn sử dụng
-
-1. **Tải sách**: Kéo thả file PDF (dạng text-based) vào vùng tải lên tại trang Thư viện.
-2. **Theo dõi tiến độ**: Thanh tiến trình hiển thị phần trăm đoạn văn bản đã được dịch theo thời gian thực.
-3. **Đọc sách**:
-   - Bấm vào nút **"Đọc"** để mở sách.
-   - Nhấp chuột vào bất kỳ đoạn văn bản nào trên trang PDF để hiển thị popup bản dịch tiếng Việt.
-   - Dùng phím `←` / `→` trên bàn phím để đọc tiếp các đoạn liền kề.
-   - Nhấn phím `Esc` hoặc nhấp chuột ra ngoài để đóng popup.
